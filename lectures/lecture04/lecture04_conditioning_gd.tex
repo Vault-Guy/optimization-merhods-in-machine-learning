@@ -1,0 +1,1000 @@
+%!TEX TS-program = pdflatex
+
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{cmap}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{etoolbox}
+\usepackage{PTSans}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+\renewcommand{\familydefault}{\sfdefault}
+\renewcommand{\rmdefault}{\sfdefault}
+
+\newbool{russian}
+\booltrue{russian}
+\usepackage{HSE-theme/beamerthemeHSE}
+
+\hypersetup{bookmarks=false}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamerfont{frametitle}{size=\Large}
+\setbeamerfont{framesubtitle}{size=\small}
+\setbeamerfont{block title}{size=\normalsize}
+\setbeamerfont{block body}{size=\small}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\newcommand{\grad}{\nabla}
+\newcommand{\argmin}{\operatorname*{arg\,min}}
+\newcommand{\lammin}{\lambda_{\min}}
+\newcommand{\lammax}{\lambda_{\max}}
+\newcommand{\kappaA}{\kappa(A)}
+
+\title[Методы оптимизации в ML]{Методы оптимизации\\в машинном обучении}
+\subtitle{Лекция 4. Обусловленность и градиентный спуск: почему алгоритм сходится?}
+\author[Н. Лукьяненко]{Никита Лукьяненко}
+\institute{Совместная программа СМОЛ ГУ и ФКН НИУ ВШЭ}
+\date{2026/27 учебный год}
+
+\begin{document}
+
+% 1
+\frame[plain]{\titlepage}
+
+% 2
+\begin{frame}{С чего продолжаем}
+\small
+На прошлой лекции для квадратичной функции
+\[
+ f(x)=\frac12x^\top Ax-b^\top x+c,
+ \qquad A=A^\top\succ0,
+\]
+мы ввели число обусловленности
+\[
+ \boxed{\kappaA=\frac{\lammax(A)}{\lammin(A)}\ge1.}
+\]
+
+\begin{alertblock}{Сегодня}
+Сначала разберёмся, что именно измеряет $\kappa(A)$ и почему эта величина важна. Затем увидим, как тот же спектр определяет допустимый шаг и скорость градиентного спуска.
+\end{alertblock}
+\end{frame}
+
+% 3
+\begin{frame}{Геометрический смысл числа обусловленности}
+\centering
+\includegraphics[width=0.94\linewidth]{conditioning_contours.pdf}
+
+\vspace{0.2em}
+\small
+$\kappa$ измеряет не общую ``крутизну'' функции, а \textbf{неравномерность кривизны по разным направлениям}.
+\end{frame}
+
+% 4
+\begin{frame}{Экстремальные кривизны}
+\small
+Для симметричной положительно определённой матрицы
+\[
+ \boxed{
+ \min_{\norm{v}=1}v^\top Av=\lammin(A),
+ \qquad
+ \max_{\norm{v}=1}v^\top Av=\lammax(A).
+ }
+\]
+
+Поэтому
+\[
+ \boxed{
+ \kappaA=
+ \frac{\displaystyle\max_{\norm{v}=1}v^\top Av}
+      {\displaystyle\min_{\norm{v}=1}v^\top Av}.
+ }
+\]
+
+\begin{block}{Интерпретация}
+Число обусловленности показывает, во сколько раз самая большая направленная кривизна превосходит самую маленькую.
+\end{block}
+\end{frame}
+
+% 5
+\begin{frame}{Почему вытянутость равна $\sqrt{\kappa}$, а не $\kappa$?}
+\footnotesize
+В собственных координатах линия уровня квадратичной функции имеет вид
+\[
+ \frac12\sum_i\lambda_i z_i^2=c.
+\]
+Вдоль собственного направления $v_i$ остальные координаты равны нулю, поэтому
+\[
+ \frac12\lambda_i z_i^2=c
+ \quad\Longrightarrow\quad
+ |z_i|=a_i=\sqrt{\frac{2c}{\lambda_i}}.
+\]
+Значит,
+\[
+ \boxed{
+ \frac{a_{\max}}{a_{\min}}
+ =\sqrt{\frac{\lammax}{\lammin}}
+ =\sqrt{\kappaA}.
+ }
+\]
+
+\begin{alertblock}{Пример}
+Если $\kappa=100$, линия уровня вытянута по главным осям в $10$ раз.
+\end{alertblock}
+\end{frame}
+
+% 6
+\begin{frame}{Масштаб функции и обусловленность --- разные вещи}
+\small
+Если умножить матрицу на $c>0$, все собственные значения умножатся на $c$:
+\[
+ \lambda_i(cA)=c\lambda_i(A).
+\]
+Следовательно,
+\[
+ \boxed{
+ \kappa(cA)
+ =\frac{c\lammax(A)}{c\lammin(A)}
+ =\kappa(A).
+ }
+\]
+
+\begin{block}{Самопроверка}
+Что хуже обусловлено?
+\[
+ A_1=0.01I,
+ \qquad
+ A_2=\operatorname{diag}(1,100).
+\]
+\end{block}
+
+Ответ: $\kappa(A_1)=1$, а $\kappa(A_2)=100$.
+\end{frame}
+
+% 7
+\begin{frame}{Почему это вообще называется ``обусловленностью''?}
+\small
+Рассмотрим линейную систему
+\[
+ Ax=b,
+ \qquad A\succ0.
+\]
+Её решение
+\[
+ x=A^{-1}b
+\]
+зависит от входных данных $b$.
+
+\begin{block}{Вопрос}
+Если слегка изменить $b$, насколько сильно может измениться решение $x$?
+\end{block}
+
+Именно эту \textbf{чувствительность задачи} контролирует число обусловленности.
+\end{frame}
+
+% 8
+\begin{frame}{Одинаковое возмущение --- разный сдвиг решения}
+\small
+Рассмотрим одно и то же относительное возмущение правой части:
+\[
+ b=\begin{pmatrix}1\\0\end{pmatrix},\qquad
+ \Delta b=\begin{pmatrix}0\\0.1\end{pmatrix},\qquad
+ \frac{\norm{\Delta b}}{\norm b}=10\%.
+\]
+
+\vspace{0.15em}
+\centering
+\includegraphics[width=0.82\linewidth]{sensitivity_solution.pdf}
+
+\vspace{0.15em}
+\footnotesize
+Одинаковое изменение входных данных может почти не изменить решение хорошо обусловленной системы и сильно изменить решение плохо обусловленной.
+\end{frame}
+
+% 9
+\begin{frame}{Оценка чувствительности решения}
+\small
+\begin{block}{Утверждение}
+Пусть $A=A^\top\succ0$, $Ax=b$, а при фиксированной $A$ правая часть получила возмущение $\Delta b$. Тогда при $b\neq0$
+\[
+ \boxed{
+ \frac{\norm{\Delta x}}{\norm{x}}
+ \le
+ \kappaA\,
+ \frac{\norm{\Delta b}}{\norm{b}}.
+ }
+\]
+\end{block}
+
+\begin{alertblock}{Смысл}
+$\kappa(A)$ --- максимально возможный коэффициент усиления относительной ошибки правой части в этой оценке.
+\end{alertblock}
+\end{frame}
+
+% 10
+\begin{frame}{Доказательство оценки чувствительности: первая половина}
+\footnotesize
+После возмущения имеем
+\[
+ A(x+\Delta x)=b+\Delta b.
+\]
+Вычитая $Ax=b$, получаем
+\[
+ A\Delta x=\Delta b,
+ \qquad
+ \Delta x=A^{-1}\Delta b.
+\]
+Собственные значения $A^{-1}$ равны $1/\lambda_i(A)$, поэтому
+\[
+ \norm{A^{-1}}_2=\frac1{\lammin(A)}.
+\]
+Следовательно,
+\[
+ \boxed{
+ \norm{\Delta x}
+ \le
+ \frac1{\lammin(A)}\norm{\Delta b}.
+ }
+\]
+\end{frame}
+
+% 11
+\begin{frame}{Доказательство оценки чувствительности: завершаем}
+\footnotesize
+Так как $b=Ax$,
+\[
+ \norm{b}=\norm{Ax}\le\lammax(A)\norm{x}.
+\]
+Отсюда
+\[
+ \frac1{\norm{x}}
+ \le
+ \frac{\lammax(A)}{\norm{b}}.
+\]
+Комбинируем с предыдущей оценкой:
+\[
+ \frac{\norm{\Delta x}}{\norm{x}}
+ \le
+ \frac{\lammax(A)}{\lammin(A)}
+ \frac{\norm{\Delta b}}{\norm{b}}.
+\]
+То есть
+\[
+ \boxed{
+ \frac{\norm{\Delta x}}{\norm{x}}
+ \le
+ \kappaA\frac{\norm{\Delta b}}{\norm{b}}.
+ }
+\]
+\end{frame}
+
+% 12
+\begin{frame}{Обусловленность задачи и скорость алгоритма --- не одно и то же}
+\small
+До сих пор мы говорили о \textbf{чувствительности самой задачи}: как решение реагирует на изменение входных данных.
+
+\vspace{0.6em}
+Теперь переключимся на \textbf{алгоритм}: сколько шагов потребуется, чтобы добраться до решения?
+
+\begin{alertblock}{Интрига}
+Для квадратичных задач оказывается, что те же числа $\lammin$, $\lammax$ и $\kappa$ управляют и поведением градиентного спуска.
+\end{alertblock}
+\end{frame}
+
+% 13
+\begin{frame}{Напоминание: градиентный спуск}
+\small
+В курсе машинного обучения вы уже встречали алгоритм
+\[
+ \boxed{
+ x_{k+1}=x_k-\alpha\grad f(x_k),
+ }
+\]
+где $\alpha>0$ --- шаг.
+
+\begin{block}{Сегодня нас интересуют не вычислительные детали}
+Мы хотим математически ответить на два вопроса:
+\begin{enumerate}
+ \item почему этот шаг вообще должен уменьшать функцию;
+ \item при каких $\alpha$ последовательность действительно сходится.
+\end{enumerate}
+\end{block}
+\end{frame}
+
+% 14
+\begin{frame}{Откуда возникает направление $-\grad f(x)$?}
+\small
+Из второй лекции:
+\[
+ f(x+h)\approx f(x)+\grad f(x)^\top h.
+\]
+Если выбирать направление единичной длины, максимально быстро уменьшает линейную модель направление
+\[
+ -\frac{\grad f(x)}{\norm{\grad f(x)}}.
+\]
+
+Но одной линейной модели недостаточно для выбора \textbf{длины} шага.
+\end{frame}
+
+% 15
+\begin{frame}{Линейная модель сама не умеет выбирать длину шага}
+\small
+Локально мы заменяем исходную функцию линейной моделью
+\[
+ m_{\rm lin}(h)=\grad f(x)^\top h.
+\]
+Если $\grad f(x)\neq0$ и $h=-t\grad f(x)$, $t>0$, то
+\[
+ m_{\rm lin}(-t\grad f(x))=-t\norm{\grad f(x)}^2\xrightarrow[t\to\infty]{}-\infty.
+\]
+
+\begin{alertblock}{Важно}
+Неограниченно уменьшается именно \textbf{линейная модель}, а не исходная функция $f$. Линейное приближение надёжно только для малых $\norm h$, поэтому само по себе оно не может выбрать длину шага.
+\end{alertblock}
+
+\centering
+\includegraphics[width=0.67\linewidth]{regularized_local_model.pdf}
+\end{frame}
+
+% 16
+\begin{frame}{Как найти минимум вспомогательной модели?}
+\small
+Рассмотрим функцию шага
+\[
+ m_x(h)=\grad f(x)^\top h+\frac1{2\alpha}\norm h^2,
+ \qquad \alpha>0.
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+\begin{block}{1. Необходимое условие}
+Если дифференцируемая функция имеет внутренний локальный минимум в $h^*$, то
+\[
+ \grad_h m_x(h^*)=0.
+\]
+Здесь
+\[
+ \grad_hm_x(h)=\grad f(x)+\frac1\alpha h.
+\]
+\end{block}
+
+\column{0.48\textwidth}
+\begin{block}{2. Почему здесь этого достаточно?}
+Гессиан по переменной $h$ равен
+\[
+ \nabla_h^2m_x(h)=\frac1\alpha I\succ0.
+\]
+Поэтому $m_x$ --- строго выпуклая квадратичная функция: её стационарная точка единственна и является глобальным минимумом.
+\end{block}
+\end{columns}
+
+\vspace{0.35em}
+\centering
+Следовательно, чтобы найти $h^*$, достаточно решить уравнение $\grad_hm_x(h)=0$.
+\end{frame}
+
+% 17
+\begin{frame}{Градиентный шаг как решение локальной задачи}
+\small
+Из предыдущего уравнения
+\[
+ \boxed{h^*=-\alpha\grad f(x).}
+\]
+Поэтому
+\[
+ x_{k+1}=x_k+h^*
+ =\boxed{x_k-\alpha\grad f(x_k)}.
+\]
+
+\begin{alertblock}{Важно}
+Мы вывели форму шага, но пока \textbf{не доказали}, что исходная функция $f$ при этом уменьшается или что последовательность сходится.
+\end{alertblock}
+\end{frame}
+
+% 18
+\begin{frame}{Главный вопрос: как выбрать $\alpha$?}
+\small
+Слишком маленький шаг может дать очень медленное движение.
+
+Слишком большой --- перескакивание через минимум и даже расходимость.
+
+\begin{center}
+\Large
+\[
+ \boxed{\text{Какие значения }\alpha\text{ гарантируют сходимость?}}
+\]
+\end{center}
+
+Начнём с квадратичной функции, где ответ можно получить полностью.
+\end{frame}
+
+% 19
+\begin{frame}{Квадратичная задача: всё уже известно}
+\small
+Пусть
+\[
+ f(x)=\frac12x^\top Ax-b^\top x+c,
+ \qquad A=A^\top\succ0.
+\]
+Из третьей лекции:
+\[
+ \grad f(x)=Ax-b,
+ \qquad
+ x^*=A^{-1}b.
+\]
+Градиентный шаг принимает вид
+\[
+ \boxed{
+ x_{k+1}=x_k-\alpha(Ax_k-b).
+ }
+\]
+\end{frame}
+
+% 20
+\begin{frame}{Вместо самих точек будем изучать ошибку}
+\small
+Определим
+\[
+ \boxed{e_k=x_k-x^*.}
+\]
+Тогда сходимость
+\[
+ x_k\to x^*
+\]
+эквивалентна
+\[
+ e_k\to0.
+\]
+
+\begin{block}{Почему это удобно?}
+Уравнение $Ax^*=b$ позволит убрать из рекурсии линейный член $b$.
+\end{block}
+\end{frame}
+
+% 21
+\begin{frame}{Получаем линейную рекурсию для ошибки}
+\footnotesize
+\[
+\begin{aligned}
+ e_{k+1}
+ &=x_{k+1}-x^*\\
+ &=x_k-\alpha(Ax_k-b)-x^*.
+\end{aligned}
+\]
+Так как $b=Ax^*$,
+\[
+ e_{k+1}
+ =x_k-x^*-\alpha A(x_k-x^*).
+\]
+Следовательно,
+\[
+ \boxed{
+ e_{k+1}=(I-\alpha A)e_k.
+ }
+\]
+
+Теперь задача сходимости свелась к анализу степеней одной матрицы.
+\end{frame}
+
+% 22
+\begin{frame}{Переходим в собственный базис}
+\small
+Поскольку $A$ симметрична, существует ортонормированный базис собственных векторов $v_i$:
+\[
+ Av_i=\lambda_i v_i.
+\]
+Разложим ошибку:
+\[
+ e_k=\sum_i z_{k,i}v_i.
+\]
+Тогда
+\[
+ (I-\alpha A)v_i
+ =(1-\alpha\lambda_i)v_i.
+\]
+
+\begin{alertblock}{Главная идея}
+В собственных координатах многомерный градиентный спуск распадается на независимые одномерные рекурсии.
+\end{alertblock}
+\end{frame}
+
+% 23
+\begin{frame}{Рекурсия для каждой компоненты}
+\small
+Подставляя разложение в
+\[
+ e_{k+1}=(I-\alpha A)e_k,
+\]
+получаем
+\[
+ \boxed{
+ z_{k+1,i}
+ =(1-\alpha\lambda_i)z_{k,i}.
+ }
+\]
+
+Введём обозначение
+\[
+ \boxed{q_i:=1-\alpha\lambda_i.}
+\]
+Тогда
+\[
+ z_{k+1,i}=q_i z_{k,i},
+ \qquad
+ z_{k,i}=q_i^k z_{0,i}.
+\]
+
+\begin{alertblock}{Смысл $q_i$}
+$q_i$ --- множитель, на который меняется $i$-я компонента ошибки за одну итерацию.
+\end{alertblock}
+\end{frame}
+
+% 24
+\begin{frame}{Одна координата: три возможных режима}
+\centering
+\includegraphics[width=0.95\linewidth]{scalar_recurrence_regimes.pdf}
+
+\vspace{0.15em}
+\small
+Знак $q_i$ определяет наличие колебаний, а модуль $|q_i|$ --- затухает ошибка или растёт.
+\end{frame}
+
+% 25
+\begin{frame}{Условие сходимости в одном собственном направлении}
+\small
+Для рекурсии
+\[
+ z_{k+1}=qz_k
+\]
+имеем $z_k\to0$ при любом $z_0$ тогда и только тогда, когда
+\[
+ |q|<1.
+\]
+Здесь
+\[
+ q=1-\alpha\lambda.
+\]
+Поэтому требуется
+\[
+ |1-\alpha\lambda|<1.
+\]
+\end{frame}
+
+% 26
+\begin{frame}{Что означает $|1-\alpha\lambda|<1$?}
+\centering
+\includegraphics[width=0.76\linewidth]{stability_interval.pdf}
+
+\vspace{0.1em}
+\small
+На рисунке взято $\lambda=3$. Поэтому устойчивый интервал имеет вид
+\[
+0<\alpha<\frac{2}{3}.
+\]
+В точке $\alpha=1/3$ получаем $q=0$: эта компонента ошибки исчезает за один шаг.
+\end{frame}
+
+% 27
+\begin{frame}{Решаем неравенство}
+\small
+Так как $\lambda>0$,
+\[
+ |1-\alpha\lambda|<1
+\]
+равносильно
+\[
+ -1<1-\alpha\lambda<1.
+\]
+Отсюда
+\[
+ 0<\alpha\lambda<2,
+\]
+то есть
+\[
+ \boxed{
+ 0<\alpha<\frac2\lambda.
+ }
+\]
+
+Для многомерной задачи условие должно выполняться для \textbf{каждого} собственного значения.
+\end{frame}
+
+% 28
+\begin{frame}{Теорема о сходимости на квадратичной функции}
+\small
+\begin{block}{Теорема}
+Пусть $A=A^\top\succ0$. Тогда метод
+\[
+ x_{k+1}=x_k-\alpha(Ax_k-b)
+\]
+сходится к $x^*=A^{-1}b$ при любом $x_0$ тогда и только тогда, когда
+\[
+ \boxed{
+ 0<\alpha<\frac{2}{\lammax(A)}.
+ }
+\]
+\end{block}
+
+Это первый полный ответ на вопрос о выборе шага.
+\end{frame}
+
+% 29
+\begin{frame}{Доказательство теоремы}
+\footnotesize
+Мы получили
+\[
+ z_{k,i}=(1-\alpha\lambda_i)^kz_{0,i}.
+\]
+Поэтому $e_k\to0$ при любом начальном $e_0$ тогда и только тогда, когда
+\[
+ |1-\alpha\lambda_i|<1
+ \qquad\forall i.
+\]
+Для каждого $i$ это равносильно
+\[
+ 0<\alpha<\frac{2}{\lambda_i}.
+\]
+Чтобы условие выполнялось одновременно для всех $i$, достаточно и необходимо взять самое строгое ограничение:
+\[
+ 0<\alpha<\min_i\frac2{\lambda_i}
+ =\frac2{\lammax(A)}.
+\]
+Следовательно, $e_k\to0$ и $x_k\to x^*$. \hfill$\square$
+\end{frame}
+
+% 30
+\begin{frame}{Не только сходимость: насколько быстро уменьшается ошибка?}
+\small
+Из собственных координат
+\[
+ |z_{k,i}|
+ =|1-\alpha\lambda_i|^k|z_{0,i}|.
+\]
+Определим
+\[
+ \boxed{
+ q(\alpha)=\max_i|1-\alpha\lambda_i|.
+ }
+\]
+Тогда
+\[
+ \boxed{
+ \norm{e_k}\le q(\alpha)^k\norm{e_0}.
+ }
+\]
+
+\begin{block}{Интерпретация}
+Чем меньше $q$, тем быстрее геометрически убывает ошибка.
+\end{block}
+\end{frame}
+
+% 31
+\begin{frame}{Почему при $\alpha=1/L$ худшее направление соответствует $\mu$?}
+\small
+Обозначим $L=\lammax(A)$ и $\mu=\lammin(A)$. Для каждой собственной компоненты ошибки после одного шага остаётся доля
+\[
+ q_i=\left|1-\frac{\lambda_i}{L}\right|
+ =1-\frac{\lambda_i}{L},
+ \qquad \lambda_i\in[\mu,L].
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.50\textwidth}
+\begin{block}{Что значит ``худшее''?}
+Чем \textbf{больше} $q_i$, тем большая доля ошибки остаётся после шага и тем медленнее затухает эта компонента.
+
+Поскольку $q_i$ убывает с ростом $\lambda_i$, максимум достигается при $\lambda_i=\mu$:
+\[
+ q_{\max}=1-\frac\mu L
+ =1-\frac1\kappa.
+\]
+\end{block}
+\column{0.46\textwidth}
+\centering
+\includegraphics[width=\linewidth]{worst_direction_factor.pdf}
+\end{columns}
+
+\vspace{0.1em}
+\footnotesize
+То есть $\mu/L$ --- доля, которая гарантированно ``снимается'' в самом медленном направлении; $1-\mu/L$ --- доля ошибки, которая остаётся.
+\end{frame}
+
+% 32
+\begin{frame}{Почему большое $\kappa$ означает медленную сходимость?}
+\centering
+\includegraphics[width=0.78\linewidth]{contraction_vs_kappa.pdf}
+\end{frame}
+
+% 33
+\begin{frame}{Геометрия траектории при разной обусловленности}
+\centering
+\includegraphics[width=0.95\linewidth]{gd_condition_paths.pdf}
+\end{frame}
+
+% 34
+\begin{frame}{Почему обусловленность замедляет градиентный спуск?}
+\small
+\vspace{0.55em}
+При шаге $\alpha=1/L$ мы получили оценку
+\[
+ \boxed{
+ \norm{e_k}
+ \le
+ \left(1-\frac1\kappa\right)^k\norm{e_0}.
+ }
+\]
+
+\centering
+\includegraphics[width=0.58\linewidth]{error_decay_conditioning.pdf}
+
+\vspace{0.05em}
+\begin{alertblock}{Вывод}
+При большом $\kappa$ множитель $1-1/\kappa$ близок к единице, поэтому гарантированное сокращение ошибки может быть очень медленным.
+\end{alertblock}
+\end{frame}
+
+% 35
+\begin{frame}{Но реальные функции не обязаны быть квадратичными}
+\small
+Для квадратичной функции
+\[
+ \grad^2 f(x)=A
+\]
+постоянен.
+
+Для общей гладкой функции кривизна меняется от точки к точке.
+
+\begin{alertblock}{Новая задача}
+Нужна характеристика, которая позволит контролировать, насколько быстро может меняться градиент.
+\end{alertblock}
+\end{frame}
+
+% 36
+\begin{frame}{Почему величины градиента в одной точке недостаточно}
+\centering
+\includegraphics[width=0.88\linewidth]{gradient_change_nonquadratic.pdf}
+\end{frame}
+
+% 37
+\begin{frame}{Липшицевость: общее определение}
+\small
+\begin{block}{Определение}
+Отображение $g:\R^d\to\R^m$ называется \textbf{липшицевым с константой $L\ge0$}, если для любых $x,y$
+\[
+ \boxed{
+ \norm{g(x)-g(y)}\le L\norm{x-y}.
+ }
+\]
+\end{block}
+
+\begin{alertblock}{Что означает это неравенство?}
+Изменение значения $g$ не может быть больше, чем $L$ раз изменение аргумента. Константа $L$ задаёт глобальное ограничение на скорость изменения отображения.
+\end{alertblock}
+
+Если условие выполняется с некоторым $L$, оно автоматически выполняется и с любой большей константой.
+\end{frame}
+
+% 38
+\begin{frame}{$L$-гладкость}
+\small
+\begin{block}{Определение}
+Дифференцируемая функция $f:\R^d\to\R$ называется $L$-гладкой, если её градиент $\grad f$ является липшицевым с константой $L$:
+\[
+ \boxed{
+ \norm{\grad f(x)-\grad f(y)}
+ \le L\norm{x-y}.
+ }
+\]
+\end{block}
+
+\begin{alertblock}{Смысл}
+$L$ ограничивает скорость изменения \textbf{градиента}, а не самой функции. Большое $L$ означает, что направление и величина градиента могут быстро меняться даже на небольших расстояниях.
+\end{alertblock}
+\end{frame}
+
+% 38
+\begin{frame}{Как понимать параметр $L$ в одном измерении?}
+\small
+Пусть $g(t)=f'(t)$. Липшицевость градиента означает, что для любых $t_1\neq t_2$
+\[
+ \boxed{\frac{|g(t_2)-g(t_1)|}{|t_2-t_1|}\le L.}
+\]
+То есть $L$ ограничивает \textbf{наклон любой секущей} графика производной $g=f'$.
+
+\vspace{0.15em}
+\centering
+\includegraphics[width=0.78\linewidth]{smoothness_gradient_change.pdf}
+
+\vspace{0.1em}
+\footnotesize
+Если $f''$ непрерывна, локально это соответствует условию $|f''(t)|\le L$: гладкость ограничивает величину кривизны.
+\end{frame}
+
+% 39
+\begin{frame}{Квадратичная функция как проверка определения}
+\small
+Пусть
+\[
+ f(x)=\frac12x^\top Ax-b^\top x,
+ \qquad A=A^\top\succeq0.
+\]
+Тогда
+\[
+ \grad f(x)-\grad f(y)=A(x-y).
+\]
+Следовательно,
+\[
+ \norm{\grad f(x)-\grad f(y)}
+ \le \norm{A}_2\norm{x-y}.
+\]
+Для симметричной положительно полуопределённой $A$
+\[
+ \norm{A}_2=\lammax(A).
+\]
+Значит, квадратичная функция $L$-гладкая при
+\[
+ \boxed{L=\lammax(A).}
+\]
+\end{frame}
+
+% 40
+\begin{frame}{Гладкость даёт квадратичную верхнюю модель}
+\small
+\begin{block}{Лемма об убывании}
+Если $f$ имеет $L$-липшицев градиент, то для любых $x,h$
+\[
+ \boxed{
+ f(x+h)
+ \le
+ f(x)+\grad f(x)^\top h
+ +\frac L2\norm{h}^2.
+ }
+\]
+\end{block}
+
+Для квадратичной функции такая формула была точной. Для общей гладкой функции она становится \textbf{глобальной верхней оценкой}.
+\end{frame}
+
+% 41
+\begin{frame}{Геометрия леммы об убывании}
+\centering
+\includegraphics[width=0.83\linewidth]{smooth_upper_bound.pdf}
+\end{frame}
+
+% 42
+\begin{frame}{Доказательство леммы: сводим всё к одной переменной}
+\footnotesize
+Рассмотрим путь
+\[
+ \varphi(t)=f(x+th),
+ \qquad t\in[0,1].
+\]
+По основной теореме анализа
+\[
+ f(x+h)-f(x)
+ =\int_0^1\varphi'(t)\,dt.
+\]
+По правилу цепочки
+\[
+ \varphi'(t)=\grad f(x+th)^\top h.
+\]
+Следовательно,
+\[
+ f(x+h)-f(x)
+ =\int_0^1\grad f(x+th)^\top h\,dt.
+\]
+\end{frame}
+
+% 43
+\begin{frame}{Доказательство леммы: используем гладкость}
+\footnotesize
+Вычтем линейную часть:
+\[
+\begin{aligned}
+&f(x+h)-f(x)-\grad f(x)^\top h\\
+&=\int_0^1
+[\grad f(x+th)-\grad f(x)]^\top h\,dt.
+\end{aligned}
+\]
+По неравенству Коши--Буняковского и $L$-гладкости
+\[
+ [\grad f(x+th)-\grad f(x)]^\top h
+ \le Lt\norm{h}^2.
+\]
+Интегрируя,
+\[
+ \int_0^1Lt\norm{h}^2dt
+ =\frac L2\norm{h}^2.
+\]
+Получаем требуемую оценку. \hfill$\square$
+\end{frame}
+
+% 44
+\begin{frame}{Подставляем градиентный шаг}
+\small
+Положим
+\[
+ h=-\alpha\grad f(x).
+\]
+Тогда из леммы
+\[
+\begin{aligned}
+ f(x-\alpha\grad f(x))
+ &\le f(x)-\alpha\norm{\grad f(x)}^2\\
+ &\quad+\frac L2\alpha^2\norm{\grad f(x)}^2.
+\end{aligned}
+\]
+То есть
+\[
+ \boxed{
+ f(x_{k+1})
+ \le
+ f(x_k)
+ -\alpha\left(1-\frac{L\alpha}{2}\right)
+ \norm{\grad f(x_k)}^2.
+ }
+\]
+\end{frame}
+
+% 45
+\begin{frame}{Теорема об убывании градиентного спуска}
+\small
+\begin{block}{Следствие}
+Если $f$ $L$-гладкая и
+\[
+ 0<\alpha<\frac2L,
+\]
+то при $\grad f(x_k)\neq0$
+\[
+ f(x_{k+1})<f(x_k).
+\]
+\end{block}
+
+Особенно удобно взять
+\[
+ \alpha=\frac1L.
+\]
+Тогда
+\[
+ \boxed{
+ f(x_{k+1})
+ \le
+ f(x_k)-\frac1{2L}\norm{\grad f(x_k)}^2.
+ }
+\]
+\end{frame}
+
+% 46
+\begin{frame}{Как выглядит гарантированное убывание}
+\centering
+\includegraphics[width=0.80\linewidth]{descent_step_visual.pdf}
+\end{frame}
+
+% 47
+\begin{frame}{Что мы доказали --- и чего ещё не доказали}
+\small
+Из $L$-гладкости мы получили:
+\[
+ f(x_{k+1})\le f(x_k)
+\]
+при подходящем шаге.
+
+Но отсюда \textbf{не следует}, что
+\[
+ x_k\to x^*_{\mathrm{global}}.
+\]
+
+\begin{block}{Почему?}
+Невыпуклая функция может иметь локальные минимумы и седловые точки. Убывание функции --- это ещё не глобальная оптимальность.
+\end{block}
+
+Для более сильных выводов нам понадобятся дополнительные свойства функции.
+\end{frame}
+
+% 48
+\begin{frame}{Как влияет размер шага на траекторию?}
