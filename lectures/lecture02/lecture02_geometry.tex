@@ -1,0 +1,1000 @@
+%!TEX TS-program = pdflatex
+
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% -----------------------------------------------------------------------------
+% Быстрая сборка: pdfLaTeX, без TikZ, PGFPlots и fontspec.
+% В Overleaf выберите Compiler = pdfLaTeX.
+% -----------------------------------------------------------------------------
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{cmap}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{etoolbox}
+\usepackage{PTSans}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+\renewcommand{\familydefault}{\sfdefault}
+\renewcommand{\rmdefault}{\sfdefault}
+
+\newbool{russian}
+\booltrue{russian}
+\usepackage{HSE-theme/beamerthemeHSE}
+
+\hypersetup{bookmarks=false}
+
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamerfont{frametitle}{size=\Large}
+\setbeamerfont{framesubtitle}{size=\small}
+\setbeamerfont{block title}{size=\normalsize}
+\setbeamerfont{block body}{size=\small}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\newcommand{\ip}[2]{\left\langle #1,#2\right\rangle}
+\newcommand{\grad}{\nabla}
+\newcommand{\Hess}{\nabla^2}
+\newcommand{\argmin}{\operatorname*{arg\,min}}
+
+\newcommand{\coursebox}[2][2.65cm]{%
+  \fbox{\parbox[c][0.92cm][c]{#1}{\centering #2}}%
+}
+
+\title[Методы оптимизации в ML]{Методы оптимизации\\в машинном обучении}
+\subtitle{Лекция 2. Геометрия оптимизации: производная, градиент и гессиан}
+\author[Н. Лукьяненко]{Никита Лукьяненко}
+\institute{Совместная программа СМОЛ ГУ и ФКН НИУ ВШЭ}
+\date{2026/27 учебный год}
+
+\begin{document}
+
+% 1 ---------------------------------------------------------------------------
+\frame[plain]{\titlepage}
+
+% 2 ---------------------------------------------------------------------------
+\begin{frame}{От первой лекции --- к следующему вопросу}
+\vspace{0.25em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+На первой лекции мы научились записывать обучение модели как задачу
+\[
+  x^\star\in\argmin_x f(x).
+\]
+
+Теперь представим, что мы находимся в некоторой текущей точке $x$.
+
+\begin{alertblock}{Главный вопрос сегодня}
+Как понять, \textbf{куда двигаться из $x$}, чтобы значение $f$ стало меньше?
+\end{alertblock}
+
+\column{0.48\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{optimization_step_direction.pdf}
+\end{columns}
+\end{frame}
+
+% 3 ---------------------------------------------------------------------------
+\begin{frame}{Любой итерационный метод: одна простая схема}
+\vspace{0.55em}
+
+Во многих алгоритмах новая точка получается из старой по правилу
+\[
+  \boxed{x_{k+1}=x_k+h_k.}
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.47\textwidth}
+\begin{block}{Направление}
+Куда должен смотреть вектор $h_k$?
+\end{block}
+
+\column{0.47\textwidth}
+\begin{block}{Длина шага}
+Насколько большим должен быть $\norm{h_k}$?
+\end{block}
+\end{columns}
+
+\vspace{0.45em}
+
+Сегодня почти полностью занимаемся \textbf{направлением}. Выбор длины шага будет отдельной темой курса.
+
+\end{frame}
+
+% 4 ---------------------------------------------------------------------------
+\begin{frame}{Основная идея лекции}
+\vspace{0.55em}
+
+Сложную функцию трудно анализировать целиком. Поэтому около текущей точки $x$ мы заменяем её простой моделью.
+
+\vspace{0.5em}
+\centering
+\coursebox[4.5cm]{\textbf{Линейная модель}\\первый порядок}
+\qquad
+$\Longrightarrow$
+\qquad
+\coursebox[4.0cm]{$\grad f(x)$\\градиент}
+
+\vspace{0.65em}
+
+\coursebox[4.5cm]{\textbf{Квадратичная модель}\\второй порядок}
+\qquad
+$\Longrightarrow$
+\qquad
+\coursebox[4.0cm]{$\Hess f(x)$\\гессиан}
+
+\vspace{0.75em}
+
+\begin{alertblock}{Одна история на всю лекцию}
+\centering
+Как поведение $f$ в маленькой окрестности точки $x$ подсказывает нам направление движения?
+\end{alertblock}
+
+\end{frame}
+
+% 5 ---------------------------------------------------------------------------
+\begin{frame}{Изменение параметров --- это вектор}
+\small
+\vspace{0.10em}
+
+Пусть $x\in\R^d$ --- текущие параметры, а $h\in\R^d$ --- их изменение. Тогда
+\[
+  \boxed{x_{\mathrm{new}}=x+h.}
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.46\textwidth}
+Например,
+\[
+  x=\begin{pmatrix}2\\1\end{pmatrix},
+  \qquad
+  h=\begin{pmatrix}-1\\2\end{pmatrix}
+\]
+и поэтому
+\[
+  x+h=\begin{pmatrix}1\\3\end{pmatrix}.
+\]
+
+\begin{block}{Что кодирует $h$?}
+Его направление отвечает на вопрос «куда двигаться?», а длина $\norm{h}$ --- «насколько далеко?».
+\end{block}
+
+\column{0.50\textwidth}
+\centering
+\includegraphics[width=0.76\linewidth]{vector_update.pdf}
+\end{columns}
+\end{frame}
+
+% 6 ---------------------------------------------------------------------------
+\begin{frame}{Длина изменения}
+\vspace{0.55em}
+
+Для евклидовой нормы
+\[
+  \norm{h}_2=\sqrt{h_1^2+\cdots+h_d^2}.
+\]
+
+\begin{block}{Геометрический смысл}
+$\norm{h}_2$ --- обычная длина вектора: насколько далеко мы ушли в пространстве параметров.
+\end{block}
+
+Например, для
+\[
+ h=\begin{pmatrix}-1\\2\end{pmatrix}
+\]
+имеем
+\[
+ \norm{h}_2=\sqrt{5}.
+\]
+
+\vspace{0.2em}
+\small
+Дальше индекс $2$ будем часто опускать и писать просто $\norm{h}$.
+
+\end{frame}
+
+% 7 ---------------------------------------------------------------------------
+\begin{frame}{Как сравнивать два направления?}
+\small
+\vspace{0.05em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.42\textwidth}
+В $\R^d$ привычное евклидово скалярное произведение имеет вид
+\[
+  \boxed{x^\top v=\sum_{i=1}^d x_i v_i.}
+\]
+
+Его знак уже несёт геометрическую информацию:
+\[
+\begin{aligned}
+  x^\top v_+&>0 && \text{--- острый угол},\\
+  x^\top v_0&=0 && \text{--- прямой угол},\\
+  x^\top v_-&<0 && \text{--- тупой угол}.
+\end{aligned}
+\]
+
+\begin{block}{Геометрическая идея}
+Скалярное произведение позволяет числом измерить, насколько два направления согласованы друг с другом.
+\end{block}
+
+\column{0.54\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{dot_product_3d_signs.pdf}
+\end{columns}
+
+\end{frame}
+
+% 8 ---------------------------------------------------------------------------
+\begin{frame}{Самопроверка: что такое скалярное произведение?}
+\vspace{0.75em}
+
+\begin{alertblock}{Вопрос}
+Пусть $V$ --- вещественное векторное пространство. Каким свойствам должно удовлетворять отображение
+\[
+  \langle\cdot,\cdot\rangle:V\times V\to\R,
+\]
+чтобы называться \textbf{скалярным произведением}?
+\end{alertblock}
+
+\vspace{0.65em}
+
+\centering
+\Large
+Попробуйте вспомнить свойства до следующего слайда.
+
+\vspace{0.55em}
+\normalsize
+Подсказка: нужны свойства, связывающие скалярное произведение с линейной структурой пространства и с понятием длины.
+
+\end{frame}
+
+% 9 ---------------------------------------------------------------------------
+\begin{frame}{Самопроверка: определение скалярного произведения}
+\small
+
+\begin{block}{Вопрос}
+Каким свойствам должно удовлетворять $\langle\cdot,\cdot\rangle:V\times V\to\R$?
+\end{block}
+
+\begin{block}{Определение}
+Отображение $\langle\cdot,\cdot\rangle$ называется \textbf{скалярным произведением}, если для любых $u,v,w\in V$ и $\alpha,\beta\in\R$ выполнены:
+\[
+\begin{aligned}
+\text{билинейность:}\quad
+&\langle \alpha u+\beta w,v\rangle
+ =\alpha\langle u,v\rangle+\beta\langle w,v\rangle,\\[-0.05em]
+&\langle u,\alpha v+\beta w\rangle
+ =\alpha\langle u,v\rangle+\beta\langle u,w\rangle;\\[0.25em]
+\text{симметрия:}\quad
+&\langle u,v\rangle=\langle v,u\rangle;\\[0.25em]
+\text{положительная определённость:}\quad
+&\langle u,u\rangle\ge0,
+\qquad
+\langle u,u\rangle=0\Longleftrightarrow u=0.
+\end{aligned}
+\]
+\end{block}
+
+Для стандартного скалярного произведения в $\R^d$:
+\[
+  \langle u,v\rangle=u^\top v=\sum_{i=1}^d u_i v_i.
+\]
+
+\end{frame}
+
+% 8 ---------------------------------------------------------------------------
+\begin{frame}{Скалярное произведение и угол}
+\vspace{0.30em}
+
+Для ненулевых векторов
+\[
+  \boxed{u^\top v=\norm{u}\,\norm{v}\cos\theta,}
+\]
+где $\theta\in[0,\pi]$ --- меньший угол между направлениями $u$ и $v$.
+
+\begin{columns}[T,onlytextwidth]
+\column{0.45\textwidth}
+\vspace{0.30em}
+\begin{itemize}
+  \item $\theta<90^\circ$: $u^\top v>0$;
+  \item $\theta=90^\circ$: $u^\top v=0$;
+  \item $\theta>90^\circ$: $u^\top v<0$.
+\end{itemize}
+
+\small
+Именно зависимость от угла позже позволит понять, почему движение против градиента уменьшает функцию.
+
+\column{0.51\textwidth}
+\centering
+\includegraphics[width=0.95\linewidth]{angle_dot_product.pdf}
+\end{columns}
+
+\end{frame}
+
+
+% 9 ---------------------------------------------------------------------------
+\begin{frame}{Матрица как преобразование пространства}
+\vspace{0.25em}
+
+Пусть
+\[
+A=\begin{pmatrix}2&0\\0&1/2\end{pmatrix}.
+\]
+Тогда для любого $x=(x_1,x_2)^\top$
+\[
+  Ax=
+  \begin{pmatrix}
+    2x_1\\[0.15em]
+    x_2/2
+  \end{pmatrix}.
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.45\textwidth}
+\begin{block}{Что происходит геометрически?}
+Первая координата каждой точки удваивается, а вторая уменьшается вдвое. Поэтому единичная окружность превращается в эллипс.
+\end{block}
+
+\small
+Матрица действует не только на один нарисованный вектор: она одновременно преобразует \textbf{всё пространство}.
+
+\column{0.51\textwidth}
+\centering
+\includegraphics[width=0.88\linewidth]{matrix_transform.pdf}
+\end{columns}
+
+\end{frame}
+
+
+% 10 --------------------------------------------------------------------------
+\begin{frame}{Квадратичная форма: матрица превращается в число}
+\vspace{0.5em}
+
+Если $x\in\R^d$ и $A\in\R^{d\times d}$, то
+\[
+  x^\top A x\in\R.
+\]
+
+\begin{block}{Следите за размерностями}
+\[
+  x\in\R^d,
+  \qquad
+  Ax\in\R^d,
+  \qquad
+  x^\top(Ax)\in\R.
+\]
+\end{block}
+
+Например,
+\[
+ A=\begin{pmatrix}2&0\\0&5\end{pmatrix}
+ \quad\Longrightarrow\quad
+ x^\top A x=2x_1^2+5x_2^2.
+\]
+
+\small
+Позже именно такие выражения будут описывать кривизну функции.
+
+\end{frame}
+
+% 11 --------------------------------------------------------------------------
+\begin{frame}{Мини-проверка: нулевое скалярное произведение}
+\vspace{0.30em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.46\textwidth}
+Пусть
+\[
+  u=(1,2),
+  \qquad
+  v=(2,-1).
+\]
+
+Тогда
+\[
+  u^\top v
+  =1\cdot2+2\cdot(-1)
+  =0.
+\]
+
+По формуле
+\[
+  u^\top v=\norm{u}\norm{v}\cos\theta
+\]
+для ненулевых $u,v$ получаем $\cos\theta=0$, то есть
+\[
+  \boxed{\theta=90^\circ.}
+\]
+
+\column{0.50\textwidth}
+\centering
+\includegraphics[width=0.90\linewidth]{orthogonal_vectors.pdf}
+\end{columns}
+
+\end{frame}
+
+
+% 12 --------------------------------------------------------------------------
+\begin{frame}{Производная: не формула, а локальная модель}
+\small
+\vspace{0.10em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.49\textwidth}
+\begin{block}{Определение производной}
+Если существует предел
+\[
+  f'(x)=\lim_{h\to0}\frac{f(x+h)-f(x)}{h},
+\]
+то функция называется дифференцируемой в точке $x$.
+\end{block}
+
+Для оптимизации важнее всего эквивалентная локальная запись
+\[
+  \boxed{f(x+h)=f(x)+f'(x)h+o(|h|).}
+\]
+
+То есть около $x$ функция отличается от своей касательной лишь на величину, малую по сравнению с $|h|$.
+
+\column{0.47\textwidth}
+\centering
+\includegraphics[width=0.96\linewidth]{local_linear_model.pdf}
+\end{columns}
+\end{frame}
+
+% 13 --------------------------------------------------------------------------
+\begin{frame}{Линейная модель функции}
+\vspace{0.45em}
+
+Зафиксируем точку $x$ и рассмотрим функцию от малого смещения $h$:
+\[
+  m_x(h)=f(x)+f'(x)h.
+\]
+
+\begin{block}{Интерпретация}
+$m_x(h)$ --- простая модель того, чему примерно равно $f(x+h)$.
+\end{block}
+
+При $h=0$ она точна:
+\[
+  m_x(0)=f(x).
+\]
+
+А коэффициент при $h$ равен локальному наклону $f'(x)$.
+
+\end{frame}
+
+% 14 --------------------------------------------------------------------------
+\begin{frame}{Знак производной подсказывает направление}
+\vspace{0.45em}
+
+Если $f'(x)>0$, то для малого $h>0$
+\[
+ f(x+h)-f(x)\approx f'(x)h>0,
+\]
+то есть движение вправо увеличивает функцию.
+
+\vspace{0.35em}
+
+Если $f'(x)<0$, ситуация обратная.
+
+\begin{alertblock}{В одном измерении}
+\centering
+Чтобы локально уменьшить функцию, разумно двигаться \textbf{против знака производной}.
+\end{alertblock}
+
+\end{frame}
+
+% 15 --------------------------------------------------------------------------
+\begin{frame}{Из локального направления уже видна знакомая формула}
+\vspace{0.7em}
+
+В одном измерении естественный шаг имеет вид
+\[
+  \boxed{x_{\text{new}}=x-\alpha f'(x),\qquad \alpha>0.}
+\]
+
+\begin{block}{Пока не алгоритм}
+Сегодня нас интересует только происхождение направления $-f'(x)$. Вопрос «какое брать $\alpha$?» мы сознательно откладываем.
+\end{block}
+
+\vspace{0.5em}
+
+\centering
+\coursebox[3.1cm]{$f'(x)>0$}
+\quad $\Rightarrow$ \quad
+\coursebox[3.1cm]{двигаемся влево}
+
+\vspace{0.35em}
+\coursebox[3.1cm]{$f'(x)<0$}
+\quad $\Rightarrow$ \quad
+\coursebox[3.1cm]{двигаемся вправо}
+
+\end{frame}
+
+% 16 --------------------------------------------------------------------------
+\begin{frame}{Стационарная точка ещё не обязательно минимум}
+\vspace{0.25em}
+
+\begin{block}{Определение}
+В одномерном случае точка $x^\star$ называется \textbf{стационарной}, если
+\[
+  f'(x^\star)=0.
+\]
+\end{block}
+
+Рассмотрим три функции:
+\[
+  f_1(x)=x^2,
+  \qquad
+  f_2(x)=-x^2,
+  \qquad
+  f_3(x)=x^3.
+\]
+Во всех трёх случаях $x^\star=0$ стационарна, но тип точки различен:
+\[
+\begin{array}{c|c|c}
+ x^2 & -x^2 & x^3\\ \hline
+ \text{минимум} & \text{максимум} & \text{ни минимум, ни максимум}
+\end{array}
+\]
+
+\begin{alertblock}{Вывод}
+Первый порядок фиксирует нулевой наклон, но не определяет тип стационарной точки. Нужна информация второго порядка.
+\end{alertblock}
+\end{frame}
+
+
+% 17 --------------------------------------------------------------------------
+\begin{frame}{Что будем называть локальной кривизной?}
+\vspace{0.25em}
+
+В одной переменной $f'(x)$ описывает локальный наклон, а $f''(x)$ --- скорость изменения этого наклона.
+
+\begin{block}{Определение для этой лекции}
+\textbf{Локальной кривизной} одномерной функции в точке $x$ будем называть величину
+\[
+  f''(x).
+\]
+Для функции многих переменных кривизну будем измерять \textbf{в выбранном направлении} через вторую производную соответствующего одномерного сечения.
+\end{block}
+
+Например,
+\[
+  f_1(x)=x^2,
+  \qquad
+  f_2(x)=-x^2,
+\]
+и в точке $0$ обе функции имеют нулевой наклон, но
+\[
+  f_1''(0)=2>0,
+  \qquad
+  f_2''(0)=-2<0.
+\]
+\end{frame}
+
+
+% 18 --------------------------------------------------------------------------
+\begin{frame}{Квадратичная модель видит изгиб функции}
+\small
+\vspace{0.15em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.47\textwidth}
+При малом $h$
+\[
+  \boxed{
+  f(x+h)
+  \approx
+  f(x)+f'(x)h+\frac12f''(x)h^2.
+  }
+\]
+
+\begin{block}{Два уровня информации}
+$f'(x)h$ задаёт касательную --- локальный наклон.
+
+\vspace{0.25em}
+$\frac12f''(x)h^2$ позволяет модели изгибаться и учитывать изменение наклона.
+\end{block}
+
+На рисунке линейная и квадратичная модели совпадают с $e^t$ в точке $0$, но второй порядок заметно лучше повторяет изгиб функции рядом с ней.
+
+\column{0.49\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{curvature_taylor_1d.pdf}
+\end{columns}
+
+\end{frame}
+
+
+% 19 --------------------------------------------------------------------------
+\begin{frame}{Что заменит $f'$ и $f''$ в нескольких измерениях?}
+\vspace{0.8em}
+
+\centering
+\coursebox[4.5cm]{Одна переменная\\$f'(x)$}
+\qquad
+$\Longrightarrow$
+\qquad
+\coursebox[4.5cm]{Много переменных\\$\ ?\ $}
+
+\vspace{0.8em}
+
+\coursebox[4.5cm]{Одна переменная\\$f''(x)$}
+\qquad
+$\Longrightarrow$
+\qquad
+\coursebox[4.5cm]{Много переменных\\$\ ?\ $}
+
+\vspace{0.8em}
+
+\small
+Сначала разберём первый порядок. Ответом будет \textbf{градиент}.
+
+\end{frame}
+
+% 20 --------------------------------------------------------------------------
+\begin{frame}{Поверхность и линии уровня --- два взгляда на одну функцию}
+\small
+\vspace{0.20em}
+
+Рассмотрим
+\[
+  f(x_1,x_2)=x_1^2+2x_2^2.
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.39\textwidth}
+\begin{block}{Поверхность}
+Высота над точкой $(x_1,x_2)$ равна значению $f(x_1,x_2)$.
+\end{block}
+
+\begin{block}{Линия уровня}
+Контур $f(x_1,x_2)=c$ соединяет точки одной высоты. Для этой функции такие контуры --- эллипсы.
+\end{block}
+
+По линиям уровня удобно видеть геометрию оптимизации сверху, не рисуя третью координату.
+
+\column{0.57\textwidth}
+\centering
+\includegraphics[width=0.70\linewidth]{surface_and_contours.pdf}
+\end{columns}
+
+\end{frame}
+
+
+% 21 --------------------------------------------------------------------------
+\begin{frame}{Частная производная: меняем одну координату}
+\vspace{0.45em}
+
+Для
+\[
+  f(x_1,\ldots,x_d)
+\]
+частная производная
+\[
+  \frac{\partial f}{\partial x_i}(x)
+\]
+показывает локальное изменение функции, если мы двигаем только координату $x_i$.
+
+\begin{block}{Пример}
+Для
+\[
+ f(x_1,x_2)=x_1^2+2x_2^2
+\]
+получаем
+\[
+ \frac{\partial f}{\partial x_1}=2x_1,
+ \qquad
+ \frac{\partial f}{\partial x_2}=4x_2.
+\]
+\end{block}
+
+\end{frame}
+
+% 22 --------------------------------------------------------------------------
+\begin{frame}{Градиент собирает все частные производные вместе}
+\vspace{0.45em}
+
+\begin{block}{Определение}
+\[
+  \boxed{
+  \grad f(x)=
+  \begin{pmatrix}
+    \dfrac{\partial f}{\partial x_1}(x)\\[0.4em]
+    \vdots\\[0.2em]
+    \dfrac{\partial f}{\partial x_d}(x)
+  \end{pmatrix}
+  }
+\]
+\end{block}
+
+То есть
+\[
+  \grad f(x)\in\R^d.
+\]
+
+\small
+Градиент --- не число, а вектор той же размерности, что и параметры $x$.
+
+\end{frame}
+
+% 23 --------------------------------------------------------------------------
+\begin{frame}{Первый пример градиента}
+\vspace{0.45em}
+
+Для
+\[
+ f(x_1,x_2)=x_1^2+2x_2^2
+\]
+имеем
+\[
+  \boxed{
+  \grad f(x_1,x_2)=
+  \begin{pmatrix}
+    2x_1\\
+    4x_2
+  \end{pmatrix}.
+  }
+\]
+
+В точке $(1,1)$:
+\[
+  \grad f(1,1)=
+  \begin{pmatrix}2\\4\end{pmatrix}.
+\]
+
+\vspace{0.2em}
+\small
+Через несколько слайдов мы поймём, что именно геометрически означает эта стрелка $(2,4)$.
+
+\end{frame}
+
+% 24 --------------------------------------------------------------------------
+\begin{frame}{Градиент зависит от точки}
+\small
+\vspace{-0.05em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.43\textwidth}
+Для функции
+\[
+ f(x_1,x_2)=x_1^2+2x_2^2
+\]
+имеем
+\[
+  \grad f(x_1,x_2)=(2x_1,4x_2).
+\]
+Поэтому
+\[
+  \grad f(1,1)=(2,4),
+\]
+\[
+  \grad f(-1,1)=(-2,4).
+\]
+
+\begin{alertblock}{Важно}
+Градиент зависит от точки: это \textbf{поле направлений}, а не один фиксированный вектор.
+\end{alertblock}
+
+\column{0.53\textwidth}
+\centering
+\includegraphics[width=0.88\linewidth]{gradient_field_two_points.pdf}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Дифференцируемость в $\R^d$: формальная локальная модель}
+\small
+\vspace{0.10em}
+
+\begin{block}{Определение}
+Функция $f:\R^d\to\R$ называется \textbf{дифференцируемой в точке $x$}, если существует вектор $g\in\R^d$ такой, что
+\[
+  \boxed{
+  f(x+h)=f(x)+g^\top h+o(\norm{h}),
+  \qquad h\to0.
+  }
+\]
+\end{block}
+
+Такой вектор $g$ единственен и равен градиенту:
+\[
+  g=\grad f(x).
+\]
+
+\begin{block}{Почему его компоненты --- частные производные?}
+Подставим $h=t e_i$. Тогда
+\[
+ \frac{f(x+t e_i)-f(x)}{t}=g_i+o(1),
+\]
+и при $t\to0$ получаем $g_i=\dfrac{\partial f}{\partial x_i}(x)$.
+\end{block}
+\end{frame}
+
+% 25 --------------------------------------------------------------------------
+\begin{frame}{Главная формула первого порядка}
+\vspace{0.6em}
+
+Для малого вектора $h$:
+\[
+  \boxed{
+  f(x+h)\approx f(x)+\grad f(x)^\top h.
+  }
+\]
+
+\begin{block}{Как читать эту формулу}
+\begin{itemize}
+  \item $h$ говорит, куда мы собираемся двигаться;
+  \item $\grad f(x)$ описывает локальный наклон функции;
+  \item $\grad f(x)^\top h$ предсказывает изменение $f$.
+\end{itemize}
+\end{block}
+
+\vspace{0.3em}
+\centering
+\textbf{Это многомерный аналог } $f(x+h)\approx f(x)+f'(x)h$.
+
+\end{frame}
+
+% 26 --------------------------------------------------------------------------
+\begin{frame}{Почему возникает скалярное произведение?}
+\vspace{0.5em}
+
+При малом движении $h$ изменение функции примерно равно
+\[
+  \Delta f\approx \grad f(x)^\top h.
+\]
+
+Вспомним:
+\[
+  \grad f(x)^\top h
+  =
+  \norm{\grad f(x)}\,\norm{h}\cos\theta.
+\]
+
+\begin{alertblock}{Следствие}
+\centering
+Не только длина шага, но и \textbf{угол между $h$ и градиентом} определяет, растёт функция или убывает.
+\end{alertblock}
+
+\end{frame}
+
+% 27 --------------------------------------------------------------------------
+\begin{frame}{Направленная производная}
+\vspace{0.45em}
+
+Пусть $v$ --- направление. Рассмотрим движение по прямой
+\[
+  x(t)=x+tv.
+\]
+
+\begin{block}{Определение}
+Направленная производная --- обычная производная функции вдоль этой прямой:
+\[
+  D_vf(x)
+  =
+  \lim_{t\to0}
+  \frac{f(x+tv)-f(x)}{t}.
+\]
+\end{block}
+
+\small
+Если $\norm{v}=1$, то $D_vf(x)$ можно интерпретировать как скорость изменения функции на единицу пройденного расстояния.
+
+\end{frame}
+
+% 28 --------------------------------------------------------------------------
+\begin{frame}{Направленная производная через градиент}
+\small
+\vspace{0.10em}
+
+\begin{block}{Утверждение}
+Если $f$ дифференцируема в точке $x$, то для любого направления $v$
+\[
+  \boxed{D_vf(x)=\grad f(x)^\top v.}
+\]
+\end{block}
+
+\begin{block}{Доказательство}
+Из дифференцируемости при $h=tv$:
+\[
+  f(x+tv)=f(x)+t\,\grad f(x)^\top v+o(|t|).
+\]
+Следовательно,
+\[
+  \frac{f(x+tv)-f(x)}{t}
+  =\grad f(x)^\top v+o(1).
+\]
+Переходя к пределу при $t\to0$, получаем требуемую формулу. $\square$
+\end{block}
+\end{frame}
+
+% 29 --------------------------------------------------------------------------
+\begin{frame}{Небольшая задача: изменение в двух направлениях}
+\vspace{0.55em}
+
+Пусть в некоторой точке
+\[
+  \grad f(x)=(3,4).
+\]
+
+Что происходит при движении в направлениях
+\[
+  v_1=(1,0),
+  \qquad
+  v_2=(0,-1)?
+\]
+
+\vspace{0.3em}
+
+\[
+  D_{v_1}f(x)=3,
+  \qquad
+  D_{v_2}f(x)=-4.
+\]
+
+\begin{block}{Вывод}
+В направлении $v_1$ функция локально растёт, а в направлении $v_2$ --- убывает.
+\end{block}
+
+\end{frame}
+
+% 30 --------------------------------------------------------------------------
+\begin{frame}{В каком направлении функция растёт быстрее всего?}
+\small
+\vspace{0.15em}
+
+\begin{block}{Теорема о направлении наискорейшего роста}
+Пусть $f$ дифференцируема в точке $x$ и $\grad f(x)\neq0$. Среди всех единичных направлений $\norm{v}=1$
+\[
+  \max_{\norm{v}=1}D_vf(x)=\norm{\grad f(x)},
+\]
+причём максимум достигается при
+\[
+  v_+=\frac{\grad f(x)}{\norm{\grad f(x)}}.
+\]
+А минимум равен $-\norm{\grad f(x)}$ и достигается при $v_-=-v_+$.
+\end{block}
+
+\small
+То есть градиент и антиградиент решают две маленькие оптимизационные задачи по выбору направления.
+\end{frame}
+
+% 31 --------------------------------------------------------------------------
+\begin{frame}{Доказательство теоремы о наискорейшем росте}
+\small
+\vspace{0.10em}
+
+\begin{block}{Доказательство теоремы}
+По формуле направленной производной и неравенству Коши--Буняковского
+\[
+  D_vf(x)=\grad f(x)^\top v
+  \le \norm{\grad f(x)}\,\norm{v}
+  =\norm{\grad f(x)}.
+\]
+При
+\[
+  v=v_+=\frac{\grad f(x)}{\norm{\grad f(x)}}
+\]
+получаем равенство:
+\[
+  D_{v_+}f(x)=\norm{\grad f(x)}.
+\]
+Для $v_-=-v_+$ аналогично
+\[
+  D_{v_-}f(x)=-\norm{\grad f(x)}.
+\]
+Следовательно, $v_+$ и $v_-$ действительно дают максимальный рост и максимальное убывание. $\square$
+\end{block}
+
+\small
+Само неравенство Коши--Буняковского используем без доказательства.
+\end{frame}
+
+% 32 --------------------------------------------------------------------------
+\begin{frame}{Градиент --- направление максимального локального роста}
