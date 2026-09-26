@@ -1,0 +1,883 @@
+%!TEX TS-program = xelatex
+
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\newbool{russian}
+\booltrue{russian}
+\usepackage{HSE-theme/beamerthemeHSE}
+
+% Русский язык и шрифты
+\usepackage[english,russian]{babel}
+\usepackage{fontspec}
+\IfFontExistsTF{HSE Sans}{
+  \setsansfont{HSE Sans}
+  \setmonofont{Courier New}
+}{
+  % Резервный шрифт нужен только для систем, где HSE Sans не установлен.
+  \setsansfont{DejaVu Sans}
+  \setmonofont{DejaVu Sans Mono}
+}
+\usepackage{amsmath,amssymb,mathtools}
+\uselanguage{russian}
+\languagepath{russian}
+
+\deftranslation[to=russian]{Theorem}{Теорема}
+\deftranslation[to=russian]{Definition}{Определение}
+\deftranslation[to=russian]{Example}{Пример}
+
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+% Небольшие вспомогательные настройки
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamerfont{frametitle}{size=\Large}
+\setbeamerfont{framesubtitle}{size=\small}
+\setbeamerfont{block title}{size=\normalsize}
+\setbeamerfont{block body}{size=\small}
+\newcommand{\argmin}{\operatorname*{arg\,min}}
+\newcommand{\argmax}{\operatorname*{arg\,max}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\loss}{\ell}
+
+% -----------------------------------------------------------------------------
+% Система оценивания
+% -----------------------------------------------------------------------------
+\newcommand{\HWgrade}{H}
+\newcommand{\CWgrade}{C}
+\newcommand{\Colgrade}{K}
+\newcommand{\Examgrade}{E}
+
+\title[Методы оптимизации в ML]{Методы оптимизации\\в машинном обучении}
+\subtitle{Лекция 1. Оптимизация как язык машинного обучения}
+\author[Н. Лукьяненко]{Никита Лукьяненко}
+\institute{Совместная программа СМОЛ ГУ и ФКН НИУ ВШЭ}
+\date{2026/27 учебный год}
+
+\begin{document}
+
+% 1 ---------------------------------------------------------------------------
+\frame[plain]{\titlepage}
+
+% 2 ---------------------------------------------------------------------------
+\begin{frame}{О преподавателе}
+\begin{columns}[T,onlytextwidth]
+  \column{0.58\textwidth}
+  \begin{itemize}
+    \item Никита Лукьяненко
+    \item старший преподаватель ФКН НИУ ВШЭ
+    \item преподавательский опыт: теория вероятностей, математическая статистика, статистическая теория обучения
+    \item интересы курса: математическая сторона обучения моделей и вычислительное поведение алгоритмов
+  \end{itemize}
+  \vspace{0.5em}
+  \begin{block}{Как будем работать}
+    Моя цель --- не перечислить как можно больше методов, а научить вас понимать, \textbf{что именно оптимизируется, почему алгоритм устроен так и когда он может работать плохо}.
+  \end{block}
+  \column{0.36\textwidth}
+  \begin{tikzpicture}[node distance=0.45cm]
+    \node[draw=HSEblue,rounded corners,minimum width=4.5cm,minimum height=1cm,align=center] (m1) {Математика};
+    \node[draw=HSEblue,rounded corners,below=of m1,minimum width=4.5cm,minimum height=1cm,align=center] (m2) {Алгоритмы};
+    \node[draw=HSEblue,rounded corners,below=of m2,minimum width=4.5cm,minimum height=1cm,align=center] (m3) {Эксперименты};
+    \draw[-{Latex},thick,HSEblue] (m1) -- (m2);
+    \draw[-{Latex},thick,HSEblue] (m2) -- (m3);
+  \end{tikzpicture}
+\end{columns}
+\end{frame}
+
+% 3 ---------------------------------------------------------------------------
+\begin{frame}{Что будет в курсе}
+\framesubtitle{Пять вопросов, к которым мы будем возвращаться весь год}
+\centering
+\begin{tikzpicture}[node distance=0.52cm, every node/.style={align=center}]
+  \node[draw=HSEblue,rounded corners,minimum width=8.5cm,minimum height=0.72cm] (q1) {Как формализовать задачу обучения?};
+  \node[draw=HSEblue,rounded corners,below=of q1,minimum width=8.5cm,minimum height=0.72cm] (q2) {Как устроена геометрия целевой функции?};
+  \node[draw=HSEblue,rounded corners,below=of q2,minimum width=8.5cm,minimum height=0.72cm] (q3) {Как найти минимум?};
+  \node[draw=HSEblue,rounded corners,below=of q3,minimum width=8.5cm,minimum height=0.72cm] (q4) {Почему алгоритм сходится и насколько быстро?};
+  \node[draw=HSEblue,rounded corners,below=of q4,minimum width=8.5cm,minimum height=0.72cm] (q5) {Что меняется в больших задачах машинного обучения?};
+  \foreach \a/\b in {q1/q2,q2/q3,q3/q4,q4/q5}{\draw[-{Latex},HSEblue,thick] (\a)--(\b);}
+\end{tikzpicture}
+\vspace{0.7em}
+
+\textbf{Главный герой первого семестра --- градиентный спуск.}
+\end{frame}
+
+% 4 ---------------------------------------------------------------------------
+\begin{frame}{Как устроен курс}
+\centering
+\vspace{0.15em}
+
+\begin{tikzpicture}[
+  node distance=0.15cm,
+  every node/.style={align=center},
+  stage/.style={
+    draw=HSEblue,
+    rounded corners,
+    text width=2.80cm,
+    minimum width=3.00cm,
+    minimum height=1.22cm,
+    inner sep=3pt,
+    font=\small
+  }
+]
+  \node[stage] (lec) {\textbf{Лекция}\\идея и теория};
+  \node[stage,right=of lec] (sem) {\textbf{Семинар}\\задачи руками};
+  \node[stage,right=of sem] (lab) {\textbf{Лабораторная}\\эксперимент\\в Python};
+  \node[stage,right=of lab] (ctrl) {\textbf{Контроль}\\самостоятельная\\работа};
+
+  \draw[-{Latex},thick,HSEblue] (lec) -- (sem);
+  \draw[-{Latex},thick,HSEblue] (sem) -- (lab);
+  \draw[-{Latex},thick,HSEblue] (lab) -- (ctrl);
+\end{tikzpicture}
+
+\vspace{0.9em}
+\begin{columns}[T,onlytextwidth]
+\column{0.47\textwidth}
+\begin{block}{На лекциях}
+Определения, геометрическая интуиция, ключевые утверждения и небольшое число доказательств.
+\end{block}
+
+\column{0.47\textwidth}
+\begin{block}{На практике}
+Сначала маленькие задачи, где алгоритм можно увидеть целиком; затем --- модели и реальные данные.
+\end{block}
+\end{columns}
+
+\vspace{0.35em}
+\small
+\textbf{В течение семестра:} 4 домашние лабораторные работы.
+\end{frame}
+
+
+
+% 5 ---------------------------------------------------------------------------
+\begin{frame}{Система оценивания}
+\small
+
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Активность} & \textbf{Обозначение} & \textbf{Вес} \\
+\midrule
+Домашние задания / 4 лабораторные работы & $H$ & $0.20$ \\
+Контрольная работа & $C$ & $0.25$ \\
+Коллоквиум & $K$ & $0.25$ \\
+Экзамен & $E$ & $0.50$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.35em}
+Каждая активность оценивается целым числом от $0$ до $10$.
+
+\begin{block}{Расчёт}
+% ВАЖНО: коэффициенты 0.20+0.25+0.25+0.50 суммируются в 1.20.
+% Формула ниже сохранена ровно в том виде, который был задан для курса.
+\[
+S=0.20H+0.25C+0.25K+0.50E.
+\]
+Итоговая оценка получается арифметическим округлением рассчитанного результата.
+\end{block}
+
+\vspace{0.2em}
+\textbf{Ориентировочные сроки:}
+контрольная работа --- первая половина ноября; коллоквиум --- вторая половина ноября.
+
+\vspace{0.45em}
+\textbf{Домашние работы:}
+4 лабораторные работы в течение семестра; точные дедлайны объявляются заранее.
+\end{frame}
+
+
+
+% 6 ---------------------------------------------------------------------------
+\begin{frame}{Начнём с самой простой задачи}
+\begin{columns}[T,onlytextwidth]
+\column{0.47\textwidth}
+\vspace{1em}
+Рассмотрим функцию
+\[
+  f(x)=(x-3)^2+1.
+\]
+
+\begin{block}{Вопрос}
+Какое значение $x$ нужно выбрать, чтобы сделать $f(x)$ как можно меньше?
+\end{block}
+
+\pause
+\[
+  x^\star=3, \qquad f(x^\star)=1.
+\]
+
+\column{0.49\textwidth}
+\begin{tikzpicture}
+\begin{axis}[
+  width=7.3cm,height=5.4cm,
+  axis lines=middle,
+  xmin=-1,xmax=7,ymin=0,ymax=18,
+  xlabel={$x$},ylabel={$f(x)$},
+  samples=100,
+  xtick={0,3,6},ytick={1,5,10,15},
+  clip=false
+]
+\addplot[very thick,HSEblue,domain=-0.8:6.8] {(x-3)^2+1};
+\addplot[only marks,mark=*,mark size=2.5pt,HSEred] coordinates {(3,1)};
+\node[anchor=west] at (axis cs:3.2,1.3) {$x^\star$};
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+% 7 ---------------------------------------------------------------------------
+\begin{frame}{Общая задача оптимизации}
+\vspace{0.25em}
+
+\begin{block}{Что означает запись?}
+\centering
+\[
+\boxed{\displaystyle \min_{x\in X} f(x)}
+\]
+Нужно выбрать \textbf{допустимое} значение $x\in X$, при котором значение $f(x)$ как можно меньше.
+\end{block}
+
+\vspace{0.55em}
+\begin{columns}[T,onlytextwidth]
+\column{0.31\textwidth}
+\centering
+{\Large\color{HSEblue}$x$}\\[0.2em]
+\textbf{что выбираем}\\[-0.1em]
+\small переменная оптимизации
+
+\column{0.31\textwidth}
+\centering
+{\Large\color{HSEblue}$f(x)$}\\[0.2em]
+\textbf{что минимизируем}\\[-0.1em]
+\small целевая функция
+
+\column{0.31\textwidth}
+\centering
+{\Large\color{HSEblue}$X$}\\[0.2em]
+\textbf{где можем выбирать}\\[-0.1em]
+\small допустимое множество
+\end{columns}
+
+\vspace{0.9em}
+\begin{alertblock}{Типичная интерпретация в машинном обучении}
+\centering
+$x$ --- параметры модели, \qquad $f(x)$ --- мера ошибки модели.
+\end{alertblock}
+\end{frame}
+
+
+% 8 ---------------------------------------------------------------------------
+\begin{frame}{Минимум и минимизатор --- разные объекты}
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+\begin{block}{Минимизатор}
+Точка (или множество точек), где достигается наименьшее значение:
+\[
+  x^\star\in\argmin_x f(x).
+\]
+\end{block}
+\column{0.48\textwidth}
+\begin{block}{Минимальное значение}
+Число --- значение функции в оптимальной точке:
+\[
+  f^\star=\min_x f(x).
+\]
+\end{block}
+\end{columns}
+\vspace{1em}
+Для $f(x)=(x-3)^2+1$:
+\[
+  \argmin_x f(x)=\{3\},\qquad \min_x f(x)=1.
+\]
+\vfill
+\centering
+\Large\textbf{$\argmin$ = где? \qquad $\min$ = сколько?}
+\end{frame}
+
+% 9 ---------------------------------------------------------------------------
+\begin{frame}{Минимизатор может быть не единственным}
+\begin{columns}[T,onlytextwidth]
+\column{0.47\textwidth}
+\[
+  f(x)=(x^2-1)^2.
+\]
+\[
+  \argmin_x f(x)=\{-1,1\}.
+\]
+
+\begin{alertblock}{Важно}
+$\argmin$ в общем случае --- \textbf{множество}, а не одна точка.
+\end{alertblock}
+\column{0.49\textwidth}
+\begin{tikzpicture}
+\begin{axis}[
+  width=7.2cm,height=5.3cm,
+  axis lines=middle,xmin=-2,xmax=2,ymin=-0.3,ymax=9,
+  xlabel={$x$},ylabel={$f(x)$},samples=120,
+  xtick={-1,0,1},ytick={0,4,8}
+]
+\addplot[very thick,HSEblue,domain=-1.9:1.9] {(x^2-1)^2};
+\addplot[only marks,mark=*,mark size=2.5pt,HSEred] coordinates {(-1,0) (1,0)};
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+% 10 --------------------------------------------------------------------------
+\begin{frame}{А минимум вообще всегда существует?}
+\begin{columns}[T,onlytextwidth]
+\column{0.31\textwidth}
+\begin{block}{$f(x)=x^2$}
+Минимум существует:
+\[
+\min f=0.
+\]
+\centering $x^\star=0$
+\end{block}
+\column{0.31\textwidth}
+\begin{block}{$f(x)=e^x$}
+\[
+\inf f=0,
+\]
+но $e^x>0$ при любом конечном $x$.
+
+\centering Минимума нет.
+\end{block}
+\column{0.31\textwidth}
+\begin{block}{$f(x)=-x^2$}
+\[
+f(x)\to-\infty
+\]
+при $|x|\to\infty$.
+
+\centering Функция не ограничена снизу.
+\end{block}
+\end{columns}
+\vspace{1em}
+\begin{alertblock}{Три фундаментальных вопроса курса}
+\centering Существует ли решение? \quad Единственно ли оно? \quad Как его найти?
+\end{alertblock}
+\end{frame}
+
+% 11 --------------------------------------------------------------------------
+\begin{frame}{Добавление константы не меняет минимизаторы}
+\begin{theorem}
+Пусть $g(x)=f(x)+C$, где $C$ не зависит от $x$. Тогда
+\[
+  \argmin_x g(x)=\argmin_x f(x).
+\]
+\end{theorem}
+\pause
+\begin{proof}
+Для любых $x_1,x_2$:
+\[
+ f(x_1)\le f(x_2)
+ \quad\Longleftrightarrow\quad
+ f(x_1)+C\le f(x_2)+C.
+\]
+Следовательно, добавление $C$ не меняет порядок значений функции и не меняет точки, в которых значение минимально.
+\end{proof}
+\end{frame}
+
+% 12 --------------------------------------------------------------------------
+\begin{frame}{Положительное масштабирование тоже не меняет минимизаторы}
+\begin{theorem}
+Если $g(x)=C f(x)$ и $C>0$, то
+\[
+  \argmin_x g(x)=\argmin_x f(x).
+\]
+\end{theorem}
+\pause
+Поскольку при $C>0$
+\[
+  f(x_1)\le f(x_2)
+  \quad\Longleftrightarrow\quad
+  Cf(x_1)\le Cf(x_2).
+\]
+\vspace{0.6em}
+\begin{alertblock}{А если $C<0$?}
+\[
+  \argmin_x Cf(x)=\argmax_x f(x).
+\]
+Отрицательное масштабирование переворачивает порядок.
+\end{alertblock}
+\end{frame}
+
+% 13 --------------------------------------------------------------------------
+\begin{frame}{Почему это понадобится в машинном обучении}
+Если $\loss_i(w)$ --- ошибка модели на объекте $i$, то часто встречаются две записи:
+\[
+  F_1(w)=\sum_{i=1}^{n}\loss_i(w),
+  \qquad
+  F_2(w)=\frac{1}{n}\sum_{i=1}^{n}\loss_i(w).
+\]
+
+Поскольку $1/n>0$,
+\[
+  \boxed{\argmin_w F_1(w)=\argmin_w F_2(w).}
+\]
+
+\begin{block}{То есть}
+Для положения минимума сумма и среднее эквивалентны. Но их производные и численные масштабы отличаются --- позже это станет важным для выбора шага алгоритма.
+\end{block}
+\end{frame}
+
+% 14 --------------------------------------------------------------------------
+\begin{frame}{Не все преобразования безобидны}
+\vspace{0.45em}
+
+\begin{columns}[T,onlytextwidth]
+\column{0.46\textwidth}
+\begin{block}{Исходная задача}
+Рассмотрим $x\in[-1,1]$ и
+\[
+f(x)=x.
+\]
+Тогда
+\[
+\argmin_{x\in[-1,1]} f(x)=\{-1\}.
+\]
+\end{block}
+
+\column{0.46\textwidth}
+\begin{block}{После преобразования}
+Возведём целевую функцию в квадрат:
+\[
+g(x)=f(x)^2=x^2.
+\]
+Теперь
+\[
+\argmin_{x\in[-1,1]} g(x)=\{0\}.
+\]
+\end{block}
+\end{columns}
+
+\vspace{0.6em}
+\begin{alertblock}{Вывод}
+Даже простое преобразование целевой функции может изменить решение задачи оптимизации.
+\end{alertblock}
+\end{frame}
+
+
+% 15 --------------------------------------------------------------------------
+\begin{frame}{Небольшая задача}
+Пусть
+\[
+  f(x)=(x-2)^2.
+\]
+Найдите минимизаторы следующих функций:
+\[
+\begin{aligned}
+  &f(x),\\[0.35em]
+  &3f(x),\\[0.35em]
+  &f(x)+100,\\[0.35em]
+  &-f(x).
+\end{aligned}
+\]
+\vfill
+\centering
+\textbf{На обсуждение: 2 минуты.}
+\end{frame}
+
+% 16 --------------------------------------------------------------------------
+\begin{frame}{Что делает модель машинного обучения?}
+Пусть есть обучающая выборка
+\[
+  (x_i,y_i),\qquad i=1,\dots,n.
+\]
+Модель с параметрами $w$ строит предсказание
+\[
+  \widehat y_i=h_w(x_i).
+\]
+
+\begin{block}{Что мы можем менять?}
+Данные $x_i,y_i$ уже зафиксированы. Во время обучения мы подбираем \textbf{параметры модели $w$}.
+\end{block}
+
+\[
+  \boxed{\text{обучение} = \text{выбор хорошего значения }w}
+\]
+\end{frame}
+
+% 17 --------------------------------------------------------------------------
+\begin{frame}{Функция потерь: насколько плохо одно предсказание?}
+\begin{definition}
+Функция потерь $\loss(\widehat y,y)$ сопоставляет предсказанию и правильному ответу число, измеряющее ошибку.
+\end{definition}
+
+Для регрессии естественный пример:
+\[
+  \loss(\widehat y,y)=(\widehat y-y)^2.
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.43\textwidth}
+Если $\widehat y=y$, то
+\[
+  \loss=0.
+\]
+Чем дальше предсказание от ответа, тем больше штраф.
+\column{0.53\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=7.2cm,height=4.0cm,axis lines=middle,xmin=-3,xmax=3,ymin=0,ymax=9.5,xlabel={$\widehat y-y$},ylabel={$\loss$},samples=80,xtick={-2,-1,0,1,2},ytick={0,4,8}]
+\addplot[very thick,HSEblue,domain=-3:3] {x^2};
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+% 18 --------------------------------------------------------------------------
+\begin{frame}{От одного объекта ко всей выборке}
+Ошибка на объекте $i$:
+\[
+  \loss_i(w)=\loss\bigl(h_w(x_i),y_i\bigr).
+\]
+Средняя ошибка на обучающей выборке:
+\[
+  \boxed{
+  F(w)=\frac{1}{n}\sum_{i=1}^{n}\loss_i(w)
+  }
+\]
+называется \textbf{эмпирическим риском}.
+
+\pause
+\vspace{0.6em}
+Обучение модели превращается в задачу
+\[
+  \boxed{
+  w^\star\in\argmin_w F(w)
+  }
+\]
+\end{frame}
+
+% 19 --------------------------------------------------------------------------
+\begin{frame}{Универсальная схема обучения}
+\centering
+\begin{tikzpicture}[node distance=0.38cm and 0.35cm,every node/.style={align=center}]
+  \node[draw=HSEblue,rounded corners,minimum width=2.1cm,minimum height=0.9cm] (data) {данные\\$(x_i,y_i)$};
+  \node[draw=HSEblue,rounded corners,right=of data,minimum width=2.1cm,minimum height=0.9cm] (model) {модель\\$h_w$};
+  \node[draw=HSEblue,rounded corners,right=of model,minimum width=2.1cm,minimum height=0.9cm] (pred) {предсказание\\$\widehat y_i$};
+  \node[draw=HSEblue,rounded corners,right=of pred,minimum width=2.1cm,minimum height=0.9cm] (loss) {ошибка\\$\loss_i(w)$};
+  \node[draw=HSEblue,rounded corners,right=of loss,minimum width=2.1cm,minimum height=0.9cm] (risk) {риск\\$F(w)$};
+  \foreach \a/\b in {data/model,model/pred,pred/loss,loss/risk}{\draw[-{Latex},HSEblue,thick] (\a)--(\b);}
+\end{tikzpicture}
+
+\vspace{1.4em}
+\[
+  \boxed{\displaystyle \min_w F(w)}
+\]
+\vspace{0.6em}
+\begin{block}{Где начинается наш курс}
+Архитектура модели и выбор функции потерь задают $F$. Дальше возникает вопрос: \textbf{как эффективно минимизировать эту функцию по параметрам $w$?}
+\end{block}
+\end{frame}
+
+% 20 --------------------------------------------------------------------------
+\begin{frame}{Разные модели --- одна оптимизационная структура}
+\begin{columns}[T,onlytextwidth]
+\column{0.31\textwidth}
+\begin{block}{Линейная регрессия}
+\[
+\widehat y=w^\top x+b
+\]
+\[
+\min_{w,b}F(w,b)
+\]
+\end{block}
+\column{0.31\textwidth}
+\begin{block}{Логистическая регрессия}
+\[
+p=\sigma(w^\top x+b)
+\]
+\[
+\min_{w,b}F(w,b)
+\]
+\end{block}
+\column{0.31\textwidth}
+\begin{block}{Нейронная сеть}
+\[
+\widehat y=h_w(x)
+\]
+\[
+\min_w F(w)
+\]
+\end{block}
+\end{columns}
+\vspace{1em}
+\centering
+Меняются модель и функция потерь, но остаётся вопрос
+\[
+\boxed{\text{как найти хорошие параметры?}}
+\]
+\end{frame}
+
+% 21 --------------------------------------------------------------------------
+\begin{frame}{Пример 1: линейная регрессия}
+\begin{columns}[T,onlytextwidth]
+\column{0.45\textwidth}
+В одномерном случае модель имеет вид
+\[
+  \widehat y=wx+b.
+\]
+Нужно подобрать два параметра:
+\[
+  w\quad\text{и}\quad b.
+\]
+\begin{block}{Интерпретация}
+$w$ отвечает за наклон прямой, $b$ --- за вертикальный сдвиг.
+\end{block}
+\column{0.51\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=7.6cm,height=5.1cm,axis lines=left,xmin=0,xmax=6,ymin=0,ymax=8,xlabel={$x$},ylabel={$y$},xtick=\empty,ytick=\empty]
+\addplot[only marks,mark=*,mark size=2pt,HSEblue] coordinates {(0.7,1.4)(1.4,2.5)(2.0,2.6)(2.7,4.0)(3.4,4.2)(4.1,5.7)(4.8,5.5)(5.4,6.9)};
+\addplot[very thick,HSEred,domain=0.4:5.7] {1+1.05*x};
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+% 22 --------------------------------------------------------------------------
+\begin{frame}{Среднеквадратичная ошибка}
+Для наблюдений $(x_i,y_i)$ и модели $\widehat y_i=wx_i+b$ определим
+\[
+  F(w,b)=\frac{1}{n}\sum_{i=1}^{n}(wx_i+b-y_i)^2.
+\]
+Тогда обучение линейной регрессии --- это
+\[
+\boxed{
+  \min_{w,b}\frac{1}{n}\sum_{i=1}^{n}(wx_i+b-y_i)^2
+}
+\]
+
+\begin{columns}[T,onlytextwidth]
+\column{0.47\textwidth}
+\begin{block}{Переменные оптимизации}
+\centering $w,b$
+\end{block}
+\column{0.47\textwidth}
+\begin{block}{Целевая функция}
+\centering $F(w,b)$
+\end{block}
+\end{columns}
+\vfill
+\centering \textbf{Сегодня мы только ставим задачу. Градиент этой функции появится позже.}
+\end{frame}
+
+% 23 --------------------------------------------------------------------------
+\begin{frame}{Два пространства, которые важно не путать}
+\begin{columns}[T,onlytextwidth]
+\column{0.46\textwidth}
+\textbf{Пространство данных}
+
+Каждая пара $(w,b)$ задаёт прямую
+\[
+  y=wx+b.
+\]
+Мы видим, насколько хорошо она проходит через наблюдения.
+\column{0.50\textwidth}
+\textbf{Пространство параметров}
+
+Каждой паре $(w,b)$ соответствует число
+\[
+  F(w,b).
+\]
+Оптимизация происходит именно здесь:
+\[
+  (w,b)\longmapsto F(w,b).
+\]
+\end{columns}
+\vspace{1.1em}
+\begin{alertblock}{Ключевая мысль}
+Модель живёт в пространстве данных, а алгоритм оптимизации двигается в пространстве параметров.
+\end{alertblock}
+\end{frame}
+
+% 24 --------------------------------------------------------------------------
+\begin{frame}{Пример 2: бинарная классификация}
+Пусть
+\[
+  y\in\{0,1\}.
+\]
+Линейное выражение $w^\top x+b$ может принимать любые вещественные значения, поэтому само по себе не является вероятностью.
+
+Используем логистическую функцию:
+\[
+  \boxed{
+  \sigma(z)=\frac{1}{1+e^{-z}}
+  }
+\]
+\[
+  p(y=1\mid x)=\sigma(w^\top x+b).
+\]
+\vspace{0.4em}
+\centering
+$\sigma(z)\in(0,1)$ для любого $z\in\R$.
+\end{frame}
+
+% 25 --------------------------------------------------------------------------
+\begin{frame}{Логистическая функция потерь}
+Обозначим
+\[
+  p_i=\sigma(w^\top x_i+b).
+\]
+Одна из стандартных функций потерь для бинарной классификации:
+\[
+  F(w,b)=-\frac1n\sum_{i=1}^{n}
+  \Bigl[y_i\log p_i+(1-y_i)\log(1-p_i)\Bigr].
+\]
+
+И снова обучение имеет вид
+\[
+  \boxed{\min_{w,b}F(w,b).}
+\]
+
+\begin{block}{Пока принимаем формулу как данность}
+Её вывод из принципа максимального правдоподобия не нужен для сегодняшней цели. Нам важно увидеть оптимизационную структуру.
+\end{block}
+\end{frame}
+
+% 26 --------------------------------------------------------------------------
+\begin{frame}{Всегда ли нужно минимизировать только ошибку?}
+Представьте две модели:
+\begin{itemize}
+  \item первая почти идеально подстраивается под обучающие данные, но очень сложна;
+  \item вторая ошибается немного сильнее, зато устроена заметно проще.
+\end{itemize}
+
+\vspace{0.6em}
+В машинном обучении часто нужен \textbf{компромисс} между качеством подгонки и сложностью модели.
+
+\begin{alertblock}{Идея регуляризации}
+Добавим к ошибке штраф за нежелательные значения параметров.
+\end{alertblock}
+\end{frame}
+
+% 27 --------------------------------------------------------------------------
+\begin{frame}{Регуляризованная задача}
+\vspace{0.15em}
+
+\centering
+\[
+\boxed{
+\min_w
+\left[
+\underbrace{\frac1n\sum_{i=1}^{n}\loss_i(w)}_{\text{ошибка на данных}}
++
+\lambda\,
+\underbrace{R(w)}_{\text{штраф}}
+\right]
+}
+\]
+
+\vspace{0.35em}
+\begin{columns}[T,onlytextwidth]
+\column{0.30\textwidth}
+\centering
+{\Large\color{HSEblue}$w$}\\[0.15em]
+\textbf{параметры модели}\\[-0.05em]
+\small то, что мы подбираем
+
+\column{0.30\textwidth}
+\centering
+{\Large\color{HSEblue}$R(w)$}\\[0.15em]
+\textbf{регуляризатор}\\[-0.05em]
+\small штраф за нежелательные параметры
+
+\column{0.30\textwidth}
+\centering
+{\Large\color{HSEblue}$\lambda\ge 0$}\\[0.15em]
+\textbf{сила штрафа}\\[-0.05em]
+\small задаёт баланс двух частей
+\end{columns}
+
+\vspace{0.45em}
+\raggedright
+\textbf{\color{HSEblue}Пример:}\quad
+$R(w)=\|w\|_2^2$.
+
+\vspace{0.25em}
+\small Чем больше $\lambda$, тем сильнее целевая функция штрафует большие значения параметров.
+\end{frame}
+
+
+
+% 28 --------------------------------------------------------------------------
+\begin{frame}{Оптимизация как компромисс}
+\centering
+\vspace{0.6em}
+\Large
+\[
+\underbrace{\text{ошибка на данных}}_{\text{хочется уменьшить}}
+\quad+
+\lambda
+\underbrace{\text{сложность модели}}_{\text{хочется контролировать}}
+\]
+\normalsize
+\vspace{1em}
+\begin{block}{Важно}
+Оптимизация не обязательно означает «минимизировать ошибку любой ценой». Мы сначала \textbf{конструируем целевую функцию}, которая отражает нужный нам компромисс, а уже потом ищем её минимум.
+\end{block}
+\end{frame}
+
+% 29 --------------------------------------------------------------------------
+\begin{frame}{Вся первая лекция --- в одной формуле}
+\centering
+\vspace{0.5em}
+\[
+\boxed{
+  w^\star\in\argmin_w
+  \left[
+  \frac1n\sum_{i=1}^{n}
+  \loss\bigl(h_w(x_i),y_i\bigr)
+  +\lambda R(w)
+  \right]
+}
+\]
+\vspace{1em}
+\begin{itemize}
+  \item $w$ --- параметры модели;
+  \item $h_w$ --- модель;
+  \item $\loss$ --- ошибка на одном объекте;
+  \item $R$ --- регуляризатор;
+  \item $\lambda$ --- сила регуляризации.
+\end{itemize}
+\end{frame}
+
+% 30 --------------------------------------------------------------------------
+\begin{frame}{Но как найти $w^\star$?}
+\centering
+\Large
+Если параметров два, поверхность функции можно хотя бы нарисовать.
+\vspace{0.7em}
+
+А если параметров --- миллион?
+\vspace{1em}
+
+\begin{alertblock}{Следующий вопрос курса}
+\centering
+Как использовать геометрию функции, чтобы понять, \textbf{куда двигаться из текущей точки}?
+\end{alertblock}
+\vspace{0.7em}
+\normalsize
+Следующая лекция: \textbf{линейная алгебра для оптимизации}.
+\end{frame}
+
+% 31 --------------------------------------------------------------------------
+\begin{frame}{Что нужно унести с собой}
+\begin{enumerate}
+  \item Задача оптимизации имеет вид $\min_{x\in X}f(x)$.
+  \item $\argmin$ обозначает точки-минимизаторы, $\min$ --- минимальное значение.
+  \item Обучение модели часто сводится к минимизации среднего значения функции потерь.
+  \item Регуляризация добавляет в целевую функцию штраф и меняет компромисс, который мы оптимизируем.
+  \item Следующая задача --- научиться находить минимум алгоритмически.
+\end{enumerate}
+\vfill
+\centering
+\textbf{К следующему занятию: повторить векторы, матрицы, скалярное произведение и собственные значения.}
+\end{frame}
+
+\end{document}
