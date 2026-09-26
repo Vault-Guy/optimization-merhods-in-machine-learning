@@ -998,3 +998,174 @@ $L$ ограничивает скорость изменения \textbf{гра�
 
 % 48
 \begin{frame}{Как влияет размер шага на траекторию?}
+\centering
+\includegraphics[width=0.98\linewidth]{step_size_paths.pdf}
+\end{frame}
+
+% 49
+\begin{frame}{Можно ли выбрать шаг лучше, чем $1/L$?}
+\small
+Для квадратичной функции мы знаем точный коэффициент сокращения
+\[
+ q(\alpha)=\max_i|1-\alpha\lambda_i|.
+\]
+При спектре
+\[
+ \lambda_i\in[\mu,L]
+\]
+достаточно контролировать концы интервала:
+\[
+ \boxed{
+ q(\alpha)=\max\{|1-\alpha\mu|,\ |1-\alpha L|\}.
+ }
+\]
+
+Теперь можно оптимизировать уже сам выбор шага.
+\end{frame}
+
+% 50
+\begin{frame}{Оптимальный фиксированный шаг: идея}
+\small
+Чтобы минимизировать худший множитель, естественно уравнять ошибки на двух концах спектра:
+\[
+ 1-\alpha\mu
+ =-(1-\alpha L).
+\]
+Отсюда
+\[
+ 2=\alpha(L+\mu),
+\]
+поэтому
+\[
+ \boxed{
+ \alpha^*=\frac{2}{L+\mu}.
+ }
+\]
+\end{frame}
+
+% 51
+\begin{frame}{Коэффициент сокращения при оптимальном шаге}
+\small
+Подставим $\alpha^*$:
+\[
+ q^*=1-\alpha^*\mu
+ =1-\frac{2\mu}{L+\mu}.
+\]
+Следовательно,
+\[
+ \boxed{
+ q^*=\frac{L-\mu}{L+\mu}.
+ }
+\]
+Через число обусловленности $\kappa=L/\mu$:
+\[
+ \boxed{
+ q^*=\frac{\kappa-1}{\kappa+1}.
+ }
+\]
+\end{frame}
+
+% 53
+\begin{frame}{Где находится оптимальный шаг?}
+\small
+\vspace{0.45em}
+Для спектра $\lambda\in[\mu,L]$ худший множитель равен
+\[
+ q(\alpha)=\max\{|1-\alpha\mu|,\ |1-\alpha L|\}.
+\]
+
+\centering
+\includegraphics[width=0.68\linewidth]{optimal_alpha.pdf}
+
+\vspace{-0.15em}
+\small
+Минимум достигается там, где два крайних направления одинаково плохи:
+\[
+1-\alpha\mu=-(1-\alpha L)
+\quad\Longrightarrow\quad
+\alpha^*=\frac{2}{L+\mu}.
+\]
+\end{frame}
+
+% 53
+\begin{frame}{Сравним $1/L$ и оптимальный фиксированный шаг}
+\centering
+\includegraphics[width=0.80\linewidth]{alpha_error_decay.pdf}
+\end{frame}
+
+% 54
+\begin{frame}{Карта лекции}
+\footnotesize
+\[
+ \boxed{\kappa=\frac{L}{\mu}}
+ \quad\Longrightarrow\quad
+ \begin{array}{c}
+ \text{вытянутость линий уровня}\\
+ \text{чувствительность решения}
+ \end{array}
+\]
+\[
+ \Downarrow
+\]
+\[
+ e_{k+1}=(I-\alpha A)e_k
+ \quad\Longrightarrow\quad
+ z_{k+1,i}=(1-\alpha\lambda_i)z_{k,i}
+\]
+\[
+ \Downarrow
+\]
+\[
+ 0<\alpha<\frac2L,
+ \qquad
+ \norm{e_k}\le q^k\norm{e_0}
+\]
+\[
+ \Downarrow
+\]
+\[
+ \text{$L$-гладкость}
+ \quad\Longrightarrow\quad
+ f(x+h)\le f(x)+\grad f(x)^\top h+\frac L2\norm h^2.
+\]
+\end{frame}
+
+% 55
+\begin{frame}{Что стоит уметь после лекции}
+\small
+\begin{enumerate}
+ \item Объяснять геометрический и численный смысл $\kappa(A)$.
+ \item Доказывать оценку чувствительности линейной системы через $\kappa(A)$.
+ \item Выводить рекурсию
+ \[
+ e_{k+1}=(I-\alpha A)e_k
+ \]
+ и условие
+ \[
+ 0<\alpha<2/L.
+ \]
+ \item Формулировать определение $L$-гладкости.
+ \item Доказывать лемму об убывании и применять её к градиентному шагу.
+\end{enumerate}
+\end{frame}
+
+% 56
+\begin{frame}{Куда движемся дальше?}
+\small
+Сегодня мы показали, что при гладкости подходящий градиентный шаг \textbf{уменьшает функцию}.
+
+Но остаётся вопрос:
+\[
+ \boxed{
+ \text{когда локальное уменьшение приводит к глобальному минимуму?}
+ }
+\]
+
+Для этого нам понадобится геометрическое свойство функции --- \textbf{выпуклость}.
+
+\vspace{0.5em}
+Следующая лекция: \textbf{выпуклые функции и условия оптимальности}.
+\end{frame}
+
+\end{document}
+\end{document}
