@@ -131,4 +131,21 @@ jobs:
           fi
 
           git commit -m "build: update compiled lecture PDFs"
-          git push origin HEAD:main
+
+          # The main branch may have advanced while LaTeX was compiling.
+          # Rebase the generated-PDF commit onto the latest main before pushing.
+          for attempt in 1 2 3
+          do
+            git fetch origin main
+            git rebase origin/main
+
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push raced with another update to main; retrying..."
+            sleep 2
+          done
+
+          echo "Failed to publish compiled PDFs after 3 attempts."
+          exit 1
