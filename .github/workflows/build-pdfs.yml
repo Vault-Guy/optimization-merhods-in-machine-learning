@@ -1,0 +1,134 @@
+name: Build lecture PDFs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "lectures/**/*.tex"
+      - "lectures/**/generate_figures.py"
+      - "requirements.txt"
+      - ".github/workflows/build-pdfs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lecture-pdf-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            latexmk \
+            texlive-xetex \
+            texlive-latex-extra \
+            texlive-lang-cyrillic \
+            texlive-fonts-recommended \
+            texlive-fonts-extra
+          sudo apt-get clean
+
+      - name: Fetch pinned HSE Beamer theme
+        shell: bash
+        run: |
+          set -euo pipefail
+          THEME_COMMIT="e366692c79cb7bf3eead2fce5324b41e2b267583"
+          THEME_BASE="https://raw.githubusercontent.com/Halifay/latex/${THEME_COMMIT}/LaTeX-HSE-beamer%202.1/LaTeX-HSE-beamer%202.1/HSE-theme"
+
+          mkdir -p /tmp/HSE-theme
+          for file in \
+            beamerthemeHSE.sty \
+            01_Znak_CMYK.pdf \
+            01_Logo_HSE_full_rus_CMYK.pdf \
+            01_Logo_HSE_full_eng_CMYK.pdf
+          do
+            curl --fail --location --retry 3 \
+              "${THEME_BASE}/${file}" \
+              --output "/tmp/HSE-theme/${file}"
+          done
+
+          for lecture in lectures/lecture01 lectures/lecture02 lectures/lecture03 lectures/lecture04
+          do
+            rm -rf "${lecture}/HSE-theme"
+            cp -R /tmp/HSE-theme "${lecture}/HSE-theme"
+          done
+
+      - name: Generate figures
+        run: |
+          python lectures/lecture02/generate_figures.py
+          python lectures/lecture03/generate_figures.py
+          python lectures/lecture04/generate_figures.py
+
+      - name: Build lecture 1
+        working-directory: lectures/lecture01
+        run: |
+          latexmk -xelatex -interaction=nonstopmode -halt-on-error lecture01_optimization_ml.tex
+
+      - name: Build lecture 2
+        working-directory: lectures/lecture02
+        run: |
+          latexmk -pdf -interaction=nonstopmode -halt-on-error lecture02_geometry.tex
+
+      - name: Build lecture 3
+        working-directory: lectures/lecture03
+        run: |
+          latexmk -pdf -interaction=nonstopmode -halt-on-error lecture03_quadratic.tex
+
+      - name: Build lecture 4
+        working-directory: lectures/lecture04
+        run: |
+          latexmk -pdf -interaction=nonstopmode -halt-on-error lecture04_conditioning_gd.tex
+
+      - name: Collect PDFs
+        run: |
+          mkdir -p pdf
+          cp lectures/lecture01/lecture01_optimization_ml.pdf pdf/
+          cp lectures/lecture02/lecture02_geometry.pdf pdf/
+          cp lectures/lecture03/lecture03_quadratic.pdf pdf/
+          cp lectures/lecture04/lecture04_conditioning_gd.pdf pdf/
+
+      - name: Upload PDFs as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lecture-pdfs
+          path: pdf/*.pdf
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Commit updated PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add pdf/*.pdf
+
+          if git diff --cached --quiet; then
+            echo "Compiled PDFs have not changed."
+            exit 0
+          fi
+
+          git commit -m "build: update compiled lecture PDFs"
+          git push origin HEAD:main
