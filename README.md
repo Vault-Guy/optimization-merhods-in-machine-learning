@@ -12,6 +12,7 @@
 | 2 | Геометрия оптимизации: производная, градиент и гессиан | [PDF](pdf/lecture02_geometry.pdf) | [LaTeX](lectures/lecture02/lecture02_geometry.tex) · [графики](lectures/lecture02/generate_figures.py) |
 | 3 | Квадратичная оптимизация: геометрия, спектр и точное решение | [PDF](pdf/lecture03_quadratic.pdf) | [LaTeX](lectures/lecture03/lecture03_quadratic.tex) · [графики](lectures/lecture03/generate_figures.py) |
 | 4 | Обусловленность и градиентный спуск: почему алгоритм сходится? | [PDF](pdf/lecture04_conditioning_gd.pdf) | [LaTeX](lectures/lecture04/lecture04_conditioning_gd.tex) · [графики](lectures/lecture04/generate_figures.py) |
+| 5 | Выпуклость и условия оптимальности | [PDF](pdf/lecture05_convexity.pdf) | [LaTeX](lectures/lecture05/lecture05_convexity.tex) · [графики](lectures/lecture05/generate_figures.py) |
 
 > PDF собираются автоматически GitHub Actions после изменений исходников. Если ссылки временно недоступны сразу после коммита, нужно дождаться завершения workflow **Build lecture PDFs**.
 
@@ -34,6 +35,7 @@ lectures/
   lecture02/
   lecture03/
   lecture04/
+  lecture05/
 seminars/
   seminar02/tasks.md
   seminar03/tasks.md
@@ -46,7 +48,7 @@ pdf/                     # автоматически собранные лек�
 
 Подробные инструкции находятся в [BUILD.md](BUILD.md).
 
-Лекция 1 рассчитана на **XeLaTeX**, лекции 2–4 — на **pdfLaTeX**. Графики для лекций 2–4 генерируются соответствующими Python-скриптами. Автоматическая сборка сама получает HSE Beamer theme и сохраняет готовые PDF.
+Лекция 1 рассчитана на **XeLaTeX**, лекции 2–5 — на **pdfLaTeX**. Графики для лекций 2–5 генерируются соответствующими Python-скриптами. Автоматическая сборка сама получает HSE Beamer theme и сохраняет готовые PDF.
 
 Python-зависимости перечислены в [requirements.txt](requirements.txt).
 
