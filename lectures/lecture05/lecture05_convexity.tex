@@ -1,0 +1,49 @@
+%!TEX TS-program = pdflatex
+
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{cmap}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{etoolbox}
+\usepackage{PTSans}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+\renewcommand{\familydefault}{\sfdefault}
+\renewcommand{\rmdefault}{\sfdefault}
+
+\newbool{russian}
+\booltrue{russian}
+\usepackage{HSE-theme/beamerthemeHSE}
+
+\hypersetup{bookmarks=false}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamerfont{frametitle}{size=\Large}
+\setbeamerfont{framesubtitle}{size=\small}
+\setbeamerfont{block title}{size=\normalsize}
+\setbeamerfont{block body}{size=\small}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\newcommand{\grad}{\nabla}
+\newcommand{\argmin}{\operatorname*{arg\,min}}
+
+\title[Методы оптимизации в ML]{Методы оптимизации\\в машинном обучении}
+\subtitle{Лекция 5. Выпуклость и условия оптимальности}
+\author[Н. Лукьяненко]{Никита Лукьяненко}
+\institute{Совместная программа СМОЛ ГУ и ФКН НИУ ВШЭ}
+\date{2026/27 учебный год}
+
+\begin{document}
+
+\input{part01.tex}
+\input{part02.tex}
+\input{part03.tex}
+\input{part04.tex}
+
+\end{document}
