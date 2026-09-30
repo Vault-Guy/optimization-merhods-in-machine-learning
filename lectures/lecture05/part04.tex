@@ -1,0 +1,149 @@
+% 51
+\begin{frame}{Пример из ML: метод наименьших квадратов}
+\small
+Рассмотрим уже знакомую задачу
+\[
+ f(w)=\frac12\norm{Xw-y}^2.
+\]
+Её гессиан
+\[
+ \grad^2f(w)=X^\top X.
+\]
+Для любого $z$
+\[
+ z^\top X^\top Xz=\norm{Xz}^2\ge0.
+\]
+Следовательно,
+\[
+\boxed{X^\top X\succeq0,}
+\]
+и задача выпукла.
+\end{frame}
+
+% 52
+\begin{frame}{Когда минимум линейной регрессии единственный?}
+\small
+Если столбцы $X$ линейно независимы, то
+\[
+ Xz\ne0\qquad\forall z\ne0.
+\]
+Поэтому
+\[
+ z^\top X^\top Xz=\norm{Xz}^2>0,
+\]
+то есть
+\[
+ X^\top X\succ0.
+\]
+
+Следовательно, функция строго и сильно выпукла, а минимум единственен.
+\end{frame}
+
+% 53
+\begin{frame}{Ridge добавляет кривизну}
+\small
+Для Ridge-регрессии
+\[
+ f(w)=\frac12\norm{Xw-y}^2+\frac{\lambda}{2}\norm{w}^2,
+ \qquad \lambda>0,
+\]
+имеем
+\[
+ \grad^2f=X^\top X+\lambda I\succeq\lambda I.
+\]
+
+\centering
+\includegraphics[width=0.70\linewidth]{ridge_geometry.pdf}
+\end{frame}
+
+% 54
+\begin{frame}{Логистическая потеря тоже выпукла}
+\small
+Для одного объекта удобно рассматривать
+\[
+ \ell(z)=\log(1+e^{-z}).
+\]
+Её вторая производная
+\[
+ \ell''(z)=\frac{e^z}{(1+e^z)^2}>0.
+\]
+Следовательно, $\ell$ строго выпукла по $z$.
+
+\centering
+\includegraphics[width=0.66\linewidth]{logistic_convexity.pdf}
+\end{frame}
+
+% 55
+\begin{frame}{Сумма выпуклых функций остаётся выпуклой}
+\footnotesize
+\begin{block}{Утверждение}
+Если $f_i$ выпуклы и $\alpha_i\ge0$, то
+\[
+ F(x)=\sum_i\alpha_i f_i(x)
+\]
+выпукла.
+\end{block}
+
+Действительно,
+\[
+\begin{aligned}
+F((1-t)x+ty)
+&=\sum_i\alpha_i f_i((1-t)x+ty)\\
+&\le\sum_i\alpha_i\big((1-t)f_i(x)+tf_i(y)\big)\\
+&=(1-t)F(x)+tF(y).
+\end{aligned}
+\]
+
+Отсюда средний эмпирический риск из выпуклых потерь тоже выпуклый.
+\end{frame}
+
+% 56
+\begin{frame}{Где эта теория перестаёт работать}
+\small
+Для параметров глубокой нейронной сети функция потерь обычно невыпукла.
+
+\centering
+\includegraphics[width=0.67\linewidth]{nonconvex_loss_landscape.pdf}
+
+\vspace{0.1em}
+\small
+Поэтому уже нельзя автоматически утверждать:
+\[
+\text{локальный минимум = глобальный},
+\]
+\[
+\grad f(x)=0\Longrightarrow\text{глобальный минимум}.
+\]
+\end{frame}
+
+% 57
+\begin{frame}{Итоги и следующий вопрос}
+\small
+Сегодня мы получили цепочку
+\[
+\boxed{
+\text{выпуклость}
+\Longrightarrow
+f(y)\ge f(x)+\grad f(x)^\top(y-x)
+\Longrightarrow
+\grad f(x^\star)=0\iff x^\star\text{ — глобальный минимум}
+}
+\]
+и критерий
+\[
+ f\text{ выпукла}
+ \iff
+ \grad^2f(x)\succeq0.
+\]
+
+Для сильно выпуклой и гладкой функции
+\[
+ \mu I\preceq\grad^2f(x)\preceq LI,
+ \qquad
+ \kappa=\frac{L}{\mu}.
+\]
+
+\begin{alertblock}{Следующая лекция}
+Теперь мы знаем, \textbf{куда} должен прийти градиентный спуск. Следующий вопрос: \textbf{насколько быстро он туда приходит?}
+\end{alertblock}
+\end{frame}
